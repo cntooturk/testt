@@ -7,7 +7,8 @@ import time
 import re
 import concurrent.futures
 from geopy.geocoders import Nominatim
-from datetime import datetime  # <-- HATA BURADAYDI, EKLENDİ
+from datetime import datetime
+import pytz # Saat ayarı için
 
 # --- AYARLAR ---
 st.set_page_config(page_title="CNTOOTURK Live", page_icon="🚌", layout="centered")
@@ -20,12 +21,17 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
 
-# --- HAT LİSTESİ (Özet) ---
-# Buraya uzun listenin tamamını yapıştırabilirsin.
+# --- HAT LİSTESİ ---
+# (Buraya önceki kodlardaki uzun listeyi ekleyebilirsin, özet geçiyorum)
 TUM_HATLAR = [
     "1A", "1C", "B5", "93", "97", "14L2", "6F", "B24", "38", "97G",
     "HAT SEÇİLMEMİŞ", "SERVİS DIŞI"
 ]
+
+def get_turkey_time():
+    """Türkiye saatini döndürür"""
+    tz = pytz.timezone('Europe/Istanbul')
+    return datetime.now(tz).strftime('%H:%M:%S')
 
 def plaka_duzenle(plaka_ham):
     """ 16m10171 -> 16 M 10171 """
@@ -51,25 +57,29 @@ def google_maps_link(lat, lon):
     return f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE")
+st.title("🚌 CNTOOTURK LIVE v39")
+st.caption(f"Sistem Saati: {get_turkey_time()}")
 st.markdown("---")
 
-# Session State (Verileri hafızada tutmak için)
+# Session State
 if 'secilen_plaka' not in st.session_state:
     st.session_state.secilen_plaka = None
+if 'takip_modu' not in st.session_state:
+    st.session_state.takip_modu = False
 
 # GİRİŞ ALANI
 col_input, col_btn = st.columns([3, 1])
 with col_input:
-    giris = st.text_input("Plaka, Hat veya 3:", placeholder="Örn: 16M10171 veya B5")
+    giris = st.text_input("Giriş (Plaka, Hat veya 3):", placeholder="Örn: 16M10171")
 with col_btn:
-    st.write("") # Boşluk
+    st.write("") 
     st.write("") 
     btn_baslat = st.button("SORGULA", type="primary")
 
-# --- ANA MANTIK ---
-if giris:
+# --- ARAMA MANTIĞI ---
+if btn_baslat and giris:
     giris = giris.upper().strip()
+    st.session_state.takip_modu = False # Yeni aramada takibi durdur, yeniden başlat
     
     # 1. SENARYO: BOŞ ARAÇLAR (3)
     if giris == "3" or giris == "0":
@@ -82,29 +92,28 @@ if giris:
         
         if veriler:
             st.info(f"Toplam {len(veriler)} araç boşta.")
-            # Seçim Kutusu
             plaka_listesi = [v["plaka"] for v in veriler]
-            secim = st.selectbox("Haritada izlemek için araç seç:", ["Seçiniz..."] + plaka_listesi)
+            secim = st.selectbox("İzlemek için seç:", ["Seçiniz..."] + plaka_listesi)
             if secim and secim != "Seçiniz...":
                 secilen_arac = next((x for x in veriler if x["plaka"] == secim), None)
                 st.session_state.secilen_plaka = secilen_arac
-        else:
-            st.warning("Boşta araç bulunamadı.")
+                st.session_state.takip_modu = True # Takibi başlat
+                st.rerun()
 
     # 2. SENARYO: PLAKA SORGUSU (16M...)
     elif len(giris) > 4 and giris[0].isdigit():
         hedef = plaka_duzenle(giris)
-        
         bulunan = None
-        # Direkt API'ye plakayı soruyoruz
+        
+        # Direkt API'ye sor
         res = veri_cek(hedef)
         if res:
             bulunan = res[0]
             bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
         
-        # Eğer direkt bulamazsa hatları tara
+        # Bulamazsa tara
         if not bulunan:
-            with st.status("Detaylı tarama yapılıyor...", expanded=True) as status:
+            with st.status("Sistem taranıyor...", expanded=True) as status:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                     future_to_hat = {executor.submit(veri_cek, hat): hat for hat in TUM_HATLAR}
                     for future in concurrent.futures.as_completed(future_to_hat):
@@ -116,14 +125,16 @@ if giris:
                                 executor.shutdown(wait=False)
                                 break
                         if bulunan: break
-                status.update(label="Tarama tamamlandı!", state="complete", expanded=False)
+                status.update(label="Tarama bitti.", state="complete", expanded=False)
 
         if bulunan:
             st.session_state.secilen_plaka = bulunan
+            st.session_state.takip_modu = True
+            st.rerun() # Sayfayı yenileip aşağıya git
         else:
-            st.error(f"❌ {hedef} bulunamadı. Kontak kapalı olabilir.")
+            st.error(f"❌ {hedef} bulunamadı.")
 
-    # 3. SENARYO: HAT SORGUSU (B5...)
+    # 3. SENARYO: HAT SORGUSU
     else:
         st.subheader(f"📊 Hat: {giris}")
         data = veri_cek(giris)
@@ -142,54 +153,74 @@ if giris:
                     "KONUM": maps_url
                 })
             
-            df = pd.DataFrame(tablo_data)
+            st.dataframe(pd.DataFrame(tablo_data), 
+                         column_config={"KONUM": st.column_config.LinkColumn("Konum", display_text="📍 Harita")},
+                         hide_index=True, use_container_width=True)
             
-            st.dataframe(
-                df,
-                column_config={
-                    "KONUM": st.column_config.LinkColumn(
-                        "Canlı Konum",
-                        display_text="📍 Haritada Aç"
-                    )
-                },
-                hide_index=True,
-                use_container_width=True
-            )
-            
-            st.markdown("### 👇 Hızlı Takip")
-            plaka_secim = st.selectbox("Canlı izlemek istediğin aracı seç:", 
-                                     ["Seçiniz..."] + [b['plaka'] for b in data])
+            plaka_secim = st.selectbox("Canlı izlemek için araç seç:", ["Seçiniz..."] + [b['plaka'] for b in data])
             
             if plaka_secim and plaka_secim != "Seçiniz...":
                 hedef_arac = next((x for x in data if x['plaka'] == plaka_secim), None)
                 if hedef_arac:
                     hedef_arac['hatkodu'] = giris 
                     st.session_state.secilen_plaka = hedef_arac
+                    st.session_state.takip_modu = True
+                    st.rerun()
         else:
             st.warning("Bu hatta aktif araç yok.")
 
-# --- CANLI TAKİP PANELİ ---
-if st.session_state.secilen_plaka:
-    arac = st.session_state.secilen_plaka
+# --- 4. CANLI TAKİP VE OTO-YENİLEME BÖLÜMÜ ---
+if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
+    # 1. VERİYİ TAZELE (API'den Güncel Halini Çek)
+    # Elimizdeki eski veriyle kalmamak için API'ye tekrar soruyoruz
+    eski_veri = st.session_state.secilen_plaka
+    hedef_plaka = eski_veri['plaka']
+    hedef_hat = eski_veri.get('hatkodu') or eski_veri.get('bulunan_hat') or "HAT SEÇİLMEMİŞ"
+    
+    taze_veri = None
+    
+    # Önce bildiğimiz hatta bakalım (Hızlı olsun)
+    if hedef_hat:
+        res = veri_cek(hedef_hat)
+        taze_veri = next((x for x in res if x['plaka'] == hedef_plaka), None)
+    
+    # Bulamazsak (Hat değiştiyse veya servis dışına çıktıysa) direkt plakaya soralım
+    if not taze_veri:
+        res = veri_cek(plaka_duzenle(hedef_plaka))
+        if res: taze_veri = res[0]
+
+    # Eğer taze veri geldiyse güncelle, gelmediyse eskisiyle devam et (Sinyal kopukluğu)
+    if taze_veri:
+        taze_veri['hatkodu'] = taze_veri.get('hatkodu') or hedef_hat # Hat bilgisini koru
+        arac = taze_veri
+        st.session_state.secilen_plaka = taze_veri # Session'ı güncelle
+    else:
+        arac = eski_veri
+        st.warning("⚠️ Araçtan sinyal alınamıyor, son konum gösteriliyor.")
+
+    # --- GÖRSELLEŞTİRME ---
     st.markdown("---")
     st.subheader(f"🔴 CANLI İZLEME: {arac['plaka']}")
     
-    oto_yenile = st.checkbox("🔄 Otomatik Yenile (20 saniye)", value=False)
-    
-    if oto_yenile:
-        time.sleep(20)
-        st.rerun()
-
+    # 4 Sütunlu Bilgi Paneli (İstediğin tüm veriler)
     c1, c2, c3, c4 = st.columns(4)
-    c1.info(f"**HAT:** {arac.get('hatkodu')}")
-    c2.metric("Hız", f"{arac.get('hiz')} km/s")
-    c3.metric("Yolcu", f"{arac.get('seferYolcu')}")
-    c4.metric("Ciro", f"{arac.get('gunlukYolcu')}")
     
+    surucu_adi = arac.get('surucu')
+    if not surucu_adi or surucu_adi.strip() == "": surucu_adi = "Belirtilmemiş"
+
+    c1.info(f"👮 **SÜRÜCÜ**\n\n{surucu_adi}")
+    c2.metric("🚀 ANLIK HIZ", f"{arac.get('hiz')} km/s")
+    c3.metric("🎫 ANLIK YOLCU", f"{arac.get('seferYolcu')}")
+    c4.metric("💰 TOPLAM YOLCU", f"{arac.get('gunlukYolcu')}")
+    
+    st.write(f"🚌 **Hat:** {arac.get('hatkodu')} | 🕒 **Son Güncelleme:** {get_turkey_time()}")
+
+    # Google Maps Butonu
     g_maps = google_maps_link(arac['enlem'], arac['boylam'])
     st.link_button("📍 Google Haritalar'da Git", g_maps, use_container_width=True)
     
+    # Canlı Harita
     lat = float(arac['enlem'])
     lon = float(arac['boylam'])
     
@@ -203,5 +234,7 @@ if st.session_state.secilen_plaka:
     
     st_folium(m, width=700, height=350)
     
-    # HATA VEREN KISIM DÜZELTİLDİ:
-    st.caption(f"Son Veri: {datetime.now().strftime('%H:%M:%S')}")
+    # --- OTOMATİK YENİLEME MEKANİZMASI ---
+    # Kodun en sonuna koyuyoruz ki her şey yüklensin, sonra bekleyip yenilesin
+    time.sleep(20) # 20 Saniye bekle
+    st.rerun() # Sayfayı baştan çalıştır (Verileri tazeleyerek)
