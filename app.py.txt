@@ -1,0 +1,133 @@
+import streamlit as st
+import requests
+import pandas as pd
+import folium
+from streamlit_folium import st_folium
+import time
+import re
+from geopy.geocoders import Nominatim
+from datetime import datetime
+
+# --- AYARLAR ---
+st.set_page_config(page_title="CNTOOTURK Takip", page_icon="🚌", layout="centered")
+
+API_URL = "https://bursakartapi.abys-web.com/api/static/realtimedata"
+HEADERS = {
+    'Content-Type': 'application/json',
+    'Origin': 'https://www.bursakart.com.tr',
+    'Referer': 'https://www.bursakart.com.tr/',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+}
+
+# Hat Listesi (Kısaltılmış örnek, seninkinin tamamı buraya gelecek)
+TUM_HATLAR = ["B5", "93", "97", "14L2", "6F", "1A", "B24", "38", "97G"] # Buraya senin uzun listeyi koyacağız
+
+@st.cache_resource
+def get_geolocator():
+    return Nominatim(user_agent="cntooturk_web_v1", timeout=5)
+
+def plaka_duzenle(plaka_ham):
+    p = plaka_ham.upper().replace(" ", "")
+    match = re.match(r"(\d+)([A-Z]+)(\d+)", p)
+    if match: return f"{match.group(1)} {match.group(2)} {match.group(3)}"
+    return p
+
+def veri_cek(keyword):
+    try:
+        r = requests.post(API_URL, headers=HEADERS, json={"keyword": keyword}, timeout=4)
+        if r.status_code == 200:
+            return r.json().get("result", [])
+    except:
+        return []
+    return []
+
+# --- ARAYÜZ TASARIMI ---
+st.title("🚌 CNTOOTURK AKILLI TAKİP")
+st.markdown("Plaka (16M...) veya Hat Kodu (B5) giriniz.")
+
+# Giriş Kutusu
+giris = st.text_input("Sorgu Ekranı:", placeholder="Örn: 16M10171 veya B5")
+btn_ara = st.button("SORGULA 🔍", type="primary")
+
+if btn_ara and giris:
+    giris = giris.upper().strip()
+    geolocator = get_geolocator()
+    
+    # --- SENARYO 1: PLAKA SORGUSU ---
+    if len(giris) > 4 and giris[0].isdigit():
+        hedef_plaka = plaka_duzenle(giris)
+        st.info(f"🔍 '{hedef_plaka}' tüm sistemde aranıyor...")
+        
+        bulunan = None
+        # Hızlı Tarama
+        for hat in TUM_HATLAR + ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
+            data = veri_cek(hat)
+            for bus in data:
+                if bus.get("plaka", "").replace(" ", "") == hedef_plaka.replace(" ", ""):
+                    bus['bulunan_hat'] = hat
+                    bulunan = bus
+                    break
+            if bulunan: break
+        
+        if bulunan:
+            st.success(f"✅ BULUNDU! Hat: {bulunan['bulunan_hat']}")
+            
+            # Kart Görünümü
+            col1, col2 = st.columns(2)
+            col1.metric("Hız", f"{bulunan.get('hiz')} km/s")
+            col1.metric("Anlık Yolcu", f"{bulunan.get('seferYolcu')}")
+            col2.metric("Toplam Ciro", f"{bulunan.get('gunlukYolcu')}")
+            col2.write(f"👮 **{bulunan.get('surucu') or 'Bilinmiyor'}**")
+            
+            # Harita
+            lat = float(bulunan['enlem'])
+            lon = float(bulunan['boylam'])
+            m = folium.Map(location=[lat, lon], zoom_start=15)
+            folium.Marker(
+                [lat, lon], 
+                tooltip=hedef_plaka,
+                icon=folium.Icon(color="red", icon="bus", prefix="fa")
+            ).add_to(m)
+            st_folium(m, width=700, height=300)
+            
+            # Adres Çözümleme
+            try:
+                loc = geolocator.reverse(f"{lat},{lon}")
+                st.caption(f"📍 Konum: {loc.address}")
+            except: pass
+            
+        else:
+            st.error("❌ Araç bulunamadı veya kontak kapalı.")
+
+    # --- SENARYO 2: HAT SORGUSU ---
+    else:
+        st.info(f"📡 '{giris}' hattı verileri çekiliyor...")
+        data = veri_cek(giris)
+        
+        if data:
+            toplam_yolcu = sum(b.get('gunlukYolcu', 0) for b in data)
+            st.metric("Bu Hattaki Toplam Yolcu", f"{toplam_yolcu} Kişi", delta=f"{len(data)} Araç Aktif")
+            
+            # Tablo Hazırla
+            tablo_veri = []
+            for b in data:
+                tablo_veri.append({
+                    "Plaka": b.get("plaka"),
+                    "Sürücü": b.get("surucu"),
+                    "Hız": b.get("hiz"),
+                    "Yolcu": b.get("gunlukYolcu")
+                })
+            st.dataframe(pd.DataFrame(tablo_veri), use_container_width=True)
+            
+            # Haritada Hepsini Göster
+            if len(data) > 0:
+                m = folium.Map(location=[float(data[0]['enlem']), float(data[0]['boylam'])], zoom_start=12)
+                for b in data:
+                    folium.Marker(
+                        [float(b['enlem']), float(b['boylam'])],
+                        tooltip=f"{b['plaka']} ({b['gunlukYolcu']})",
+                        icon=folium.Icon(color="blue", icon="bus", prefix="fa")
+                    ).add_to(m)
+                st_folium(m, width=700, height=400)
+        else:
+            st.warning("Hat bulunamadı veya aktif araç yok.")
