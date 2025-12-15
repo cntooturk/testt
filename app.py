@@ -6,6 +6,8 @@ from streamlit_folium import st_folium
 import time
 import re
 import concurrent.futures
+from geopy.geocoders import Nominatim
+from datetime import datetime  # <-- HATA BURADAYDI, EKLENDİ
 
 # --- AYARLAR ---
 st.set_page_config(page_title="CNTOOTURK Live", page_icon="🚌", layout="centered")
@@ -19,19 +21,21 @@ HEADERS = {
 }
 
 # --- HAT LİSTESİ (Özet) ---
-# Buraya senin uzun listenin tamamı gelecek. Kodun kısalığı için özet geçiyorum.
-# GitHub'a atarken önceki koddaki uzun listeyi buraya yapıştırabilirsin.
+# Buraya uzun listenin tamamını yapıştırabilirsin.
 TUM_HATLAR = [
     "1A", "1C", "B5", "93", "97", "14L2", "6F", "B24", "38", "97G",
-    "HAT SEÇİLMEMİŞ", "SERVİS DIŞI" # Bunları da ekledik
+    "HAT SEÇİLMEMİŞ", "SERVİS DIŞI"
 ]
 
 def plaka_duzenle(plaka_ham):
     """ 16m10171 -> 16 M 10171 """
-    p = plaka_ham.upper().replace(" ", "")
-    match = re.match(r"(\d+)([A-Z]+)(\d+)", p)
-    if match: return f"{match.group(1)} {match.group(2)} {match.group(3)}"
-    return p
+    try:
+        p = plaka_ham.upper().replace(" ", "")
+        match = re.match(r"(\d+)([A-Z]+)(\d+)", p)
+        if match: return f"{match.group(1)} {match.group(2)} {match.group(3)}"
+        return p
+    except:
+        return plaka_ham
 
 def veri_cek(keyword):
     """API'den veri çeker"""
@@ -71,9 +75,10 @@ if giris:
     if giris == "3" or giris == "0":
         st.subheader("💤 Boş / Servis Dışı Araçlar")
         veriler = []
-        for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
-            res = veri_cek(k)
-            if res: veriler.extend(res)
+        with st.spinner("Taranıyor..."):
+            for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
+                res = veri_cek(k)
+                if res: veriler.extend(res)
         
         if veriler:
             st.info(f"Toplam {len(veriler)} araç boşta.")
@@ -81,26 +86,25 @@ if giris:
             plaka_listesi = [v["plaka"] for v in veriler]
             secim = st.selectbox("Haritada izlemek için araç seç:", ["Seçiniz..."] + plaka_listesi)
             if secim and secim != "Seçiniz...":
-                # Seçilen aracı bul ve panele gönder
                 secilen_arac = next((x for x in veriler if x["plaka"] == secim), None)
                 st.session_state.secilen_plaka = secilen_arac
+        else:
+            st.warning("Boşta araç bulunamadı.")
 
     # 2. SENARYO: PLAKA SORGUSU (16M...)
     elif len(giris) > 4 and giris[0].isdigit():
         hedef = plaka_duzenle(giris)
         
-        # Önce Hızlı "Nokta Atışı" Sorgu (Dönüp durmayı engeller)
         bulunan = None
-        # Direkt API'ye plakayı soruyoruz (En hızlı yöntem)
+        # Direkt API'ye plakayı soruyoruz
         res = veri_cek(hedef)
         if res:
             bulunan = res[0]
             bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
         
-        # Eğer direkt bulamazsa hatları tara (Yedek plan)
+        # Eğer direkt bulamazsa hatları tara
         if not bulunan:
             with st.status("Detaylı tarama yapılıyor...", expanded=True) as status:
-                # Threading ile çok hızlı tarama
                 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                     future_to_hat = {executor.submit(veri_cek, hat): hat for hat in TUM_HATLAR}
                     for future in concurrent.futures.as_completed(future_to_hat):
@@ -125,32 +129,26 @@ if giris:
         data = veri_cek(giris)
         
         if data:
-            # Toplam Yolcu
             toplam = sum(b.get('gunlukYolcu', 0) for b in data)
             st.metric("Toplam Taşınan Yolcu", f"{toplam}", delta=f"{len(data)} Aktif Araç")
             
-            # --- TABLO HAZIRLIĞI (Şoförsüz, Linkli) ---
             tablo_data = []
             for b in data:
-                # Google Maps Linki Oluştur
                 maps_url = google_maps_link(b['enlem'], b['boylam'])
                 tablo_data.append({
                     "PLAKA": b['plaka'],
                     "HIZ": f"{b['hiz']} km/s",
                     "YOLCU": b['gunlukYolcu'],
-                    "KONUM": maps_url  # Link burada
+                    "KONUM": maps_url
                 })
             
             df = pd.DataFrame(tablo_data)
             
-            # Tabloyu Gelişmiş Göster (Link butonu ile)
             st.dataframe(
                 df,
                 column_config={
                     "KONUM": st.column_config.LinkColumn(
                         "Canlı Konum",
-                        help="Google Haritalar'da aç",
-                        validate="^https://",
                         display_text="📍 Haritada Aç"
                     )
                 },
@@ -158,58 +156,44 @@ if giris:
                 use_container_width=True
             )
             
-            # --- HIZLI YÖNLENDİRME ---
             st.markdown("### 👇 Hızlı Takip")
             plaka_secim = st.selectbox("Canlı izlemek istediğin aracı seç:", 
                                      ["Seçiniz..."] + [b['plaka'] for b in data])
             
             if plaka_secim and plaka_secim != "Seçiniz...":
-                # Seçilen aracı datadan çekip session'a atıyoruz
                 hedef_arac = next((x for x in data if x['plaka'] == plaka_secim), None)
                 if hedef_arac:
-                    # Hat bilgisini de ekleyelim ki eksik kalmasın
                     hedef_arac['hatkodu'] = giris 
                     st.session_state.secilen_plaka = hedef_arac
         else:
             st.warning("Bu hatta aktif araç yok.")
 
-# --- 4. VE EN ÖNEMLİ KISIM: CANLI TAKİP PANELİ ---
-# Eğer yukarıdaki işlemlerden birinde bir araç seçildiyse (session dolduysa) burası çalışır.
+# --- CANLI TAKİP PANELİ ---
 if st.session_state.secilen_plaka:
     arac = st.session_state.secilen_plaka
     
     st.markdown("---")
     st.subheader(f"🔴 CANLI İZLEME: {arac['plaka']}")
     
-    # OTO YENİLEME KUTUSU
     oto_yenile = st.checkbox("🔄 Otomatik Yenile (20 saniye)", value=False)
     
-    # Eğer oto yenileme açıksa veriyi TAZELE
     if oto_yenile:
-        time.sleep(20) # 20 saniye bekle
-        st.rerun() # Sayfayı yenile (Bu, veriyi API'den tekrar çeker)
-        
-        # Not: Sayfa yenilenince 'giris' değişkeni tekrar çalışır ve veriyi taze çeker.
-        # Bu döngü, checkbox açık olduğu sürece devam eder.
+        time.sleep(20)
+        st.rerun()
 
-    # KOKPİT BİLGİLERİ
     c1, c2, c3, c4 = st.columns(4)
     c1.info(f"**HAT:** {arac.get('hatkodu')}")
     c2.metric("Hız", f"{arac.get('hiz')} km/s")
     c3.metric("Yolcu", f"{arac.get('seferYolcu')}")
     c4.metric("Ciro", f"{arac.get('gunlukYolcu')}")
     
-    # GOOGLE MAPS BUTONU (AYRI KUTU)
     g_maps = google_maps_link(arac['enlem'], arac['boylam'])
     st.link_button("📍 Google Haritalar'da Git", g_maps, use_container_width=True)
     
-    # CANLI HARİTA (Kırmızı Noktalı)
     lat = float(arac['enlem'])
     lon = float(arac['boylam'])
     
     m = folium.Map(location=[lat, lon], zoom_start=15)
-    
-    # Kırmızı İkon
     folium.Marker(
         [lat, lon],
         tooltip=f"{arac['plaka']}",
@@ -219,4 +203,5 @@ if st.session_state.secilen_plaka:
     
     st_folium(m, width=700, height=350)
     
+    # HATA VEREN KISIM DÜZELTİLDİ:
     st.caption(f"Son Veri: {datetime.now().strftime('%H:%M:%S')}")
