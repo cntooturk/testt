@@ -165,7 +165,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v77_stable", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v78_stable", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -175,7 +175,6 @@ def get_address(lat, lon):
                 if address.get(key):
                     mahalle = address.get(key)
                     break
-            
             if road and mahalle: return f"{road}, {mahalle}"
             elif road: return road
             elif mahalle: return mahalle
@@ -192,13 +191,10 @@ def plaka_duzenle(plaka_ham):
         return p
     except: return plaka_ham
 
-# --- GÜNCELLENMİŞ SORGULAMA MOTORU ---
 def veri_cek(keyword, genis_sorgu=True):
     try:
-        # EĞER GENİŞ SORGU İSE (LİSTE İÇİN) -> LİMİT YOK
         if genis_sorgu:
             payload = {"keyword": keyword, "take": 500, "limit": 500}
-        # EĞER TEKİL SORGU İSE (TAKİP İÇİN) -> STANDART PAYLOAD (HATA VERMEMESİ İÇİN)
         else:
             payload = {"keyword": keyword}
             
@@ -269,7 +265,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 res = veri_cek(k, genis_sorgu=True)
                 if res: veriler.extend(res)
         
-        # Deduplication
         temiz_veriler = []
         goru_plakalar = set()
         for v in veriler:
@@ -295,10 +290,10 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # YOLCU KALİBRASYONU (+%23)
-                ham_yolcu = bus.get('gunlukYolcu', 0) or 0
-                kalibre_yolcu = int(ham_yolcu * 1.23)
-                c3.write(f"{kalibre_yolcu}")
+                # Yolcu kalibrasyon
+                h_yolcu = bus.get('gunlukYolcu', 0) or 0
+                k_yolcu = int(h_yolcu * 1.23)
+                c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
                 c4.link_button("📍", maps)
@@ -316,14 +311,14 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         with st.status("🔍 Araç aranıyor...", expanded=True) as status:
             bulunan = None
             
-            # 1. ADIM: Direkt Sorgu (HASSAS MOD)
+            # 1. HASSAS ARAMA (LIMITSIZ)
             status.write(f"📡 '{hedef}' aranıyor...")
             res = veri_cek(hedef, genis_sorgu=False)
             if res:
                 bulunan = res[0]
                 bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
             
-            # 2. ADIM: Hat Taraması (GENİŞ MOD)
+            # 2. GENİŞ ARAMA
             if not bulunan:
                 status.write("🌍 Tüm hatlar taranıyor...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
@@ -338,7 +333,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                                 break
                         if bulunan: break
             
-            # 3. ADIM: Boş Araç
             if not bulunan:
                 status.write("💤 Boş araçlara bakılıyor...")
                 for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
@@ -376,7 +370,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             st.session_state.hat_ham_veri = temiz_data
         
         if temiz_data:
-            # TOPLAM YOLCU KALİBRASYONU (+%23)
             ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
             kalibre_toplam = int(ham_toplam * 1.23)
             
@@ -409,7 +402,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # SATIR YOLCU KALİBRASYONU
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
                 k_yolcu = int(h_yolcu * 1.23)
                 c3.write(f"{k_yolcu}")
@@ -453,16 +445,21 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or st.session_state.aktif_arama
 
+    # VERİ GÜNCELLEME (ÖNCE PLAKA, SONRA HAT)
     taze_veri = None
-    if hedef_hat and hedef_hat != "ÖZEL":
-        # HAT SORGUSU İÇİN GENİŞ MOD
+    
+    # 1. DENEME: Direkt Plaka Sorgusu (Limit yok, en sağlıklısı)
+    res_plaka = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
+    if res_plaka:
+        for r in res_plaka:
+            if r['plaka'] == hedef_plaka:
+                taze_veri = r
+                break
+    
+    # 2. DENEME: Hat Sorgusu (Fallback)
+    if not taze_veri and hedef_hat and hedef_hat != "ÖZEL":
         hat_verisi = veri_cek(hedef_hat, genis_sorgu=True)
         taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
-    
-    if not taze_veri:
-        # PLAKA YEDEĞİ İÇİN HASSAS MOD (HATA VERMEMESİ İÇİN)
-        res = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
-        if res: taze_veri = res[0]
 
     if taze_veri:
         taze_veri['hatkodu'] = taze_veri.get('hatkodu') or hedef_hat
@@ -492,7 +489,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hat_no = arac.get('hatkodu') or "---"
     hiz = f"{arac.get('hiz')} km/s"
     
-    # YOLCU KALİBRASYONU (Canlı Takipte Sadece Toplam İçin)
+    # Canlı takipte de toplam yolcu kalibre ediliyor
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
     kalibre_toplam = int(ham_toplam * 1.23)
