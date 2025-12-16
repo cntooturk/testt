@@ -29,26 +29,31 @@ st.markdown("""
             margin: 0px !important;
         }
         
-        /* BUTON VE SEMBOL KÜÇÜLTME */
+        /* BUTON VE SEMBOL KÜÇÜLTME (Standart Buton - ▶️) */
         .stButton button {
-            height: 24px !important;       /* Buton yüksekliği */
-            min_height: 24px !important;
+            height: 22px !important;       /* DAHA İNCE (24px -> 22px) */
+            min_height: 22px !important;
             padding-top: 0px !important;
             padding-bottom: 0px !important;
-            font-size: 11px !important;    /* Yazı ve Sembol Boyutu */
+            font-size: 10px !important;    /* Sembol biraz daha küçük */
             margin-top: 1px !important;
             margin-bottom: 1px !important;
-            line-height: 1 !important;
+            line-height: 20px !important; /* Dikey ortalama için */
         }
         
-        /* LİNK BUTONLARI (Konum) */
+        /* LİNK BUTONLARI (Konum - 📍) */
+        /* Yandan genişletme yapıldı */
         .stLinkButton a {
-            height: 24px !important;
-            min_height: 24px !important;
-            font-size: 11px !important;
-            padding: 0px !important;
-            line-height: 22px !important;
+            height: 22px !important;      /* DAHA İNCE */
+            min_height: 22px !important;
+            font-size: 10px !important;   /* Sembol boyutu */
+            /* ANA DEĞİŞİKLİK BURADA: Yandan (horizontal) boşluk eklendi, üst/alt 0 */
+            padding: 0px 8px !important;  
+            line-height: 20px !important;
             margin-top: 1px !important;
+            display: flex !important;     /* İçeriği ortalamak için */
+            justify-content: center !important;
+            align-items: center !important;
         }
 
         /* METRİK (Hız, Yolcu vb.) KÜÇÜLTME */
@@ -136,7 +141,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v68_slim", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v69_slim_wide", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -166,7 +171,8 @@ def plaka_duzenle(plaka_ham):
 
 def veri_cek(keyword):
     try:
-        payload = {"keyword": keyword, "take": 500, "limit": 500}
+        # API Limiti Kaldırıldı (Varsayılan davranış)
+        payload = {"keyword": keyword}
         r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=5, verify=False)
         if r.status_code == 200:
             return r.json().get("result", [])
@@ -202,7 +208,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v68")
+st.title("🚌 CNTOOTURK LIVE v69")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -338,6 +344,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             st.markdown(f'<p style="margin-bottom: 2px; font-weight:bold;">Listelenen Araç Sayısı: {len(temiz_data)}</p>', unsafe_allow_html=True)
             st.markdown("---")
             
+            # --- BAŞLIKLAR ---
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
             c1.markdown("**PLAKA**")
             c2.markdown("**HIZ**")
@@ -346,6 +353,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             c5.markdown("**İZLE**")
             st.divider()
 
+            # LİSTE
             for i, bus in enumerate(temiz_data):
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
                 
