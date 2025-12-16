@@ -163,25 +163,34 @@ def get_turkey_time():
     tz = pytz.timezone('Europe/Istanbul')
     return datetime.now(tz).strftime('%H:%M:%S')
 
+# --- GÜÇLENDİRİLMİŞ ADRES FONKSİYONU ---
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v78_stable", timeout=3)
+        # Timeout 10 sn'ye çıkarıldı, benzersiz agent eklendi
+        geolocator = Nominatim(user_agent="cntooturk_v79_pro_geo", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
             road = address.get('road', '') 
+            
+            # Mahalle için alternatifler (Sırayla bakar)
             mahalle = ""
             for key in ['neighbourhood', 'quarter', 'suburb', 'residential', 'village']:
                 if address.get(key):
                     mahalle = address.get(key)
                     break
+            
+            # Eğer mahalle bulunamadıysa İLÇE kullan (Yedek)
+            if not mahalle:
+                mahalle = address.get('town') or address.get('city_district') or address.get('district') or ""
+
             if road and mahalle: return f"{road}, {mahalle}"
             elif road: return road
             elif mahalle: return mahalle
             return loc.address.split(",")[0]
     except:
-        return "Adres alınıyor..."
-    return "Adres alınıyor..."
+        return "Konum Bilgisi Alınamadı" # Takılı kalmaması için mesaj
+    return "Adres aranıyor..."
 
 def plaka_duzenle(plaka_ham):
     try:
@@ -445,10 +454,9 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or st.session_state.aktif_arama
 
-    # VERİ GÜNCELLEME (ÖNCE PLAKA, SONRA HAT)
     taze_veri = None
     
-    # 1. DENEME: Direkt Plaka Sorgusu (Limit yok, en sağlıklısı)
+    # 1. HASSAS SORGULAMA (En güvenlisi)
     res_plaka = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
     if res_plaka:
         for r in res_plaka:
@@ -456,7 +464,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
                 taze_veri = r
                 break
     
-    # 2. DENEME: Hat Sorgusu (Fallback)
+    # 2. HATTA ARAMA (Yedek plan)
     if not taze_veri and hedef_hat and hedef_hat != "ÖZEL":
         hat_verisi = veri_cek(hedef_hat, genis_sorgu=True)
         taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
@@ -489,7 +497,6 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hat_no = arac.get('hatkodu') or "---"
     hiz = f"{arac.get('hiz')} km/s"
     
-    # Canlı takipte de toplam yolcu kalibre ediliyor
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
     kalibre_toplam = int(ham_toplam * 1.23)
