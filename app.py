@@ -14,17 +14,50 @@ from geopy.geocoders import Nominatim
 # SSL Hata Gizleme
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# --- AYARLAR VE CSS ---
+# --- AYARLAR VE ULTRA KOMPAKT CSS ---
 st.set_page_config(page_title="CNTOOTURK Live", page_icon="🚌", layout="centered")
 
 st.markdown("""
     <style>
-        .block-container { padding-top: 1rem; padding-bottom: 1rem; }
-        [data-testid="column"] { padding: 0px !important; }
-        .stButton { margin-top: -10px; margin-bottom: -10px; }
-        hr { margin-top: 0.2rem !important; margin-bottom: 0.2rem !important; border-top: 1px solid #ddd; }
-        p { margin-bottom: 0px !important; font-size: 14px; }
-        .stLinkButton { margin-top: -5px !important; }
+        /* Genel Boşlukları Sıfırla */
+        .block-container {
+            padding-top: 0.5rem;
+            padding-bottom: 1rem;
+        }
+        /* Sütunlar arası boşluk yok */
+        [data-testid="column"] {
+            padding: 0px !important;
+            margin: 0px !important;
+        }
+        /* Butonları incelt */
+        .stButton button {
+            height: 28px !important;
+            padding-top: 0px !important;
+            padding-bottom: 0px !important;
+            font-size: 12px !important;
+            margin-top: 2px !important;
+        }
+        /* Ayırıcı çizgiyi (divider) çok incelt */
+        hr {
+            margin: 0px 0px !important;
+            border-top: 1px solid #eee;
+        }
+        /* Yazı boyutunu küçült ve sıkılaştır */
+        p, .stMarkdown {
+            font-size: 13px !important;
+            margin-bottom: 0px !important;
+            margin-top: 0px !important;
+            padding-top: 5px !important; 
+        }
+        /* Link butonlarını hizala */
+        .stLinkButton {
+            height: 28px !important;
+            margin-top: 2px !important;
+        }
+        .stLinkButton a {
+            padding-top: 2px !important;
+            padding-bottom: 2px !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -88,7 +121,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v62_fix", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v63_ultra", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -153,7 +186,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v62")
+st.title("🚌 CNTOOTURK LIVE v63")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -185,7 +218,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 res = veri_cek(k)
                 if res: veriler.extend(res)
         
-        # --- DEDUPLICATION (AYNI PLAKALARI TEMİZLEME) ---
+        # Deduplication
         temiz_veriler = []
         goru_plakalar = set()
         for v in veriler:
@@ -195,32 +228,32 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         st.session_state.hat_ham_veri = temiz_veriler
         
-        # TABLO
-        c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
-        c1.markdown("**PLAKA**")
-        c2.markdown("**HIZ**")
-        c3.markdown("**YOLCU**")
-        c4.markdown("**KONUM**")
-        c5.markdown("**İZLE**")
-        st.divider()
-
-        # ENUMERATE İLE BENZERSİZ KEY OLUŞTURMA
-        for i, bus in enumerate(temiz_veriler):
-            c1, c2, c3, c4, c5 = st.columns([2, 1, 1, 1, 1])
-            c1.write(f"**{bus['plaka']}**")
-            c2.write(f"{bus['hiz']}")
-            c3.write(f"{bus['gunlukYolcu']}")
+        if temiz_veriler:
+            st.write(f"**Toplam {len(temiz_veriler)} araç listeleniyor:**")
             
-            maps = google_maps_link(bus['enlem'], bus['boylam'])
-            c4.link_button("📍", maps)
-            
-            # Key sonuna '_i' eklendi -> Duplicate Key Fix
-            if c5.button("▶️", key=f"btn_{bus['plaka']}_{i}"):
-                bus['hatkodu'] = "SERVİS DIŞI"
-                st.session_state.secilen_plaka = bus
-                st.session_state.takip_modu = True
-                st.rerun()
+            c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
+            c1.markdown("**PLAKA**")
+            c2.markdown("**HIZ**")
+            c3.markdown("**YOLCU**")
+            c4.markdown("**KONUM**")
+            c5.markdown("**İZLE**")
             st.divider()
+
+            for i, bus in enumerate(temiz_veriler):
+                c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
+                c1.write(f"**{bus['plaka']}**")
+                c2.write(f"{bus['hiz']}")
+                c3.write(f"{bus['gunlukYolcu']}")
+                
+                maps = google_maps_link(bus['enlem'], bus['boylam'])
+                c4.link_button("📍", maps)
+                
+                if c5.button("▶️", key=f"btn_{bus['plaka']}_{i}"):
+                    bus['hatkodu'] = "SERVİS DIŞI"
+                    st.session_state.secilen_plaka = bus
+                    st.session_state.takip_modu = True
+                    st.rerun()
+                st.divider()
 
     # PLAKA SORGUSU
     elif len(giris) > 4 and giris[0].isdigit():
@@ -274,7 +307,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         with st.spinner("Veriler yükleniyor..."):
             data = veri_cek(giris)
             
-            # --- DEDUPLICATION (HATA ÇÖZÜMÜ) ---
             temiz_data = []
             goru_plaka = set()
             for d in data:
@@ -287,10 +319,11 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         if temiz_data:
             toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
             st.metric("Toplam Yolcu", f"{toplam}", delta=f"{len(temiz_data)} Araç")
+            st.write(f"**Listelenen Araç Sayısı: {len(temiz_data)}**")
             st.markdown("---")
             
-            # --- TABLO ---
-            cols = st.columns([2.5, 1.5, 1.5, 1.5, 2])
+            # --- BAŞLIKLAR (Sıkılaştırılmış) ---
+            cols = st.columns([2.2, 1.2, 1.2, 1, 1.5])
             cols[0].markdown("**PLAKA**")
             cols[1].markdown("**HIZ**")
             cols[2].markdown("**YOLCU**")
@@ -298,9 +331,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             cols[4].markdown("**İZLE**")
             st.divider()
 
-            # ENUMERATE KULLANIMI (Key çakışmasını önler)
+            # LİSTE (SINIR YOK)
             for i, bus in enumerate(temiz_data):
-                cols = st.columns([2.5, 1.5, 1.5, 1.5, 2])
+                cols = st.columns([2.2, 1.2, 1.2, 1, 1.5])
                 
                 cols[0].write(f"**{bus['plaka']}**")
                 cols[1].write(f"{bus['hiz']}")
@@ -309,7 +342,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
                 cols[3].link_button("📍", maps)
                 
-                # KEY'E INDEX EKLENDİ -> btn_16M12345_0
                 if cols[4].button("▶️", key=f"btn_{bus['plaka']}_{i}", type="primary"):
                     bus['hatkodu'] = giris
                     st.session_state.secilen_plaka = bus
@@ -318,6 +350,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 
                 st.divider()
 
+            # Seçim kutusu (Opsiyonel olarak kalabilir)
             plaka_listesi = [b['plaka'] for b in temiz_data]
             st.selectbox("Veya listeden seç:", ["Seçiniz..."] + plaka_listesi, key="selectbox_secimi", on_change=arac_secildi_callback)
 
