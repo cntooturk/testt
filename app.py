@@ -70,7 +70,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v46", timeout=2)
+        geolocator = Nominatim(user_agent="cntooturk_v47", timeout=2)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             parts = loc.address.split(",")
@@ -106,8 +106,8 @@ if 'takip_modu' not in st.session_state:
 if 'aktif_arama' not in st.session_state:
     st.session_state.aktif_arama = None
 
-# --- ARAYÜZ BAŞLANGICI ---
-st.title("🚌 CNTOOTURK LIVE v46")
+# --- ARAYÜZ ---
+st.title("🚌 CNTOOTURK LIVE v47")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -125,7 +125,7 @@ if not st.session_state.takip_modu:
         st.session_state.takip_modu = False 
         st.session_state.secilen_plaka = None
 
-# --- 1. MOD: LİSTELEME VE SEÇİM ---
+# --- LİSTELEME MODU ---
 if st.session_state.aktif_arama and not st.session_state.takip_modu:
     giris = st.session_state.aktif_arama
     
@@ -141,7 +141,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         if veriler:
             plaka_listesi = [v["plaka"] for v in veriler]
             secim = st.selectbox("İzlenecek Aracı Seçin:", ["Seçiniz..."] + plaka_listesi)
-            
             if secim and secim != "Seçiniz...":
                 secilen = next((x for x in veriler if x["plaka"] == secim), None)
                 if secilen:
@@ -217,7 +216,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         else:
             st.warning("Hat verisi alınamadı.")
 
-# --- 2. MOD: CANLI TAKİP EKRANI ---
+# --- 2. MOD: CANLI TAKİP ---
 if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     if st.button("⬅️ Listeye Geri Dön"):
@@ -225,7 +224,6 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         st.session_state.secilen_plaka = None
         st.rerun()
 
-    # VERİYİ TAZELEME
     eski_veri = st.session_state.secilen_plaka
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or eski_veri.get('bulunan_hat') or st.session_state.aktif_arama
@@ -245,29 +243,32 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         st.session_state.secilen_plaka = taze_veri
     else:
         arac = eski_veri
-        st.toast("⚠️ Bağlantı zayıf, eski konum.")
+        st.toast("⚠️ Veri güncellenemedi, eski konum.")
 
     # --- GÖRSELLEŞTİRME ---
     st.markdown("---")
     st.success(f"🔴 **{arac['plaka']}** Canlı İzleniyor")
 
-    # YENİ ÖZELLİK: HAT BİLGİSİ
-    hat_no = arac.get('hatkodu') or "Bilinmiyor"
-    st.warning(f"🚌 **ÇALIŞTIĞI HAT:** {hat_no}")
-    
+    # SÜRÜCÜ BİLGİSİ (GENİŞ)
     surucu = arac.get('surucu') or "Belirtilmemiş"
     st.info(f"👮 **Sürücü:** {surucu}")
+
+    # YENİ TASARIM: 4'LÜ YAN YANA METRİK
+    # Hat No en başa alındı
+    hat_no = arac.get('hatkodu') or "---"
     
-    c1, c2, c3 = st.columns(3)
-    c1.metric("🚀 Hız", f"{arac.get('hiz')} km/s")
-    c2.metric("🎫 Anlık Yolcu", f"{arac.get('seferYolcu')}")
-    c3.metric("💰 Toplam Ciro", f"{arac.get('gunlukYolcu')}")
+    c1, c2, c3, c4 = st.columns(4)
+    
+    c1.metric("🚌 HAT", hat_no)
+    c2.metric("🚀 Hız", f"{arac.get('hiz')} km/s")
+    c3.metric("🎫 Anlık", f"{arac.get('seferYolcu')}")
+    c4.metric("💰 Toplam", f"{arac.get('gunlukYolcu')}")
 
     lat = float(arac['enlem'])
     lon = float(arac['boylam'])
     
     adres = get_address(lat, lon)
-    st.info(f"📍 {adres}")
+    st.warning(f"📍 {adres}")
 
     m = folium.Map(location=[lat, lon], zoom_start=15)
     folium.Marker(
