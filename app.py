@@ -136,7 +136,6 @@ HEADERS = {
 
 # --- AKILLI SIRALANMIŞ HAT LİSTESİ (1-60 -> B -> Diğer) ---
 TUM_HATLAR = [
-    # --- GRUP 1: 1 ile 60 ARASI (EN YOĞUN) ---
     "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
     "2B", "2BT", "2C", "2E", "2G1", "2G2", "2GH", "2GK", "2GM", "2GY", "2K", "2KÇ", 
     "2M", "2MU", "2U", "3C", "3G", "3İ", "3MU", "3P", "4A", "4B", "4G", "4İ", 
@@ -149,8 +148,6 @@ TUM_HATLAR = [
     "28", "28A", "29A", "30", "31A", "35B", "35C", "35E1", "35E2", "35G", "35H", 
     "35R", "35S", "35SE", "35U", "36", "36A", "37", "38", "38B", "38B2", "38D", 
     "38D2", "38G", "40H", "43A", "43D", "43H", "43HB", "60B", "60K",
-
-    # --- GRUP 2: B SERİSİ ---
     "B1", "B1B", "B2", "B2A", "B2C", "B2D", "B2K", "B3", "B3K", "B4", "B5", "B6", 
     "B7", "B8", "B9", "B10", "B10K", "B12", "B13", "B15", "B15C", "B16A", "B16B", 
     "B17", "B17A", "B17B", "B20A", "B20B", "B20C", "B20D", "B20G", "B22", "B22K", 
@@ -158,8 +155,6 @@ TUM_HATLAR = [
     "B33G", "B33H", "B33K", "B33M", "B34", "B34U", "B35", "B35K1", "B35K2", "B35M", 
     "B36", "B36A", "B36C", "B36M", "B36U", "B37", "B38", "B39", "B39K", "B40", 
     "B41B", "B41C", "B42A", "B43", "B44B", "B46", 
-
-    # --- GRUP 3: DİĞERLERİ (61+ ve Harfler) ---
     "91", "91G", "92", "92B", "93", "93E", "94", "95", "95A", "95B", "96", "97", 
     "97A", "97B", "97F", "97G", "98", "98E", "99", "101", "102", "103", "103A", 
     "104", "105", "111A", "111B", "112", "112A", "113", "113A", "114", "114A", 
@@ -186,7 +181,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v75_final_sorted", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v76_final_refresh", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -309,7 +304,11 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.1, 1.1, 1.2, 1.8])
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
-                c3.write(f"{bus['gunlukYolcu']}")
+                
+                # YOLCU KALİBRASYONU (+%23)
+                ham_yolcu = bus.get('gunlukYolcu', 0) or 0
+                kalibre_yolcu = int(ham_yolcu * 1.23)
+                c3.write(f"{kalibre_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
                 c4.link_button("📍", maps)
@@ -338,7 +337,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             if not bulunan:
                 status.write("🌍 Tüm hatlar taranıyor (Numaralı -> B -> Diğer)...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
-                    # Sıralı TUM_HATLAR kullanılıyor
                     future_to_hat = {executor.submit(veri_cek, hat): hat for hat in TUM_HATLAR}
                     for future in concurrent.futures.as_completed(future_to_hat):
                         data = future.result()
@@ -388,14 +386,16 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             st.session_state.hat_ham_veri = temiz_data
         
         if temiz_data:
-            toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
+            # TOPLAM YOLCU KALİBRASYONU (+%23)
+            ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
+            kalibre_toplam = int(ham_toplam * 1.23)
             
             # --- METRİKLER (BÜYÜK) ---
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
                 <div class="metric-card">
                     <div class="metric-title">TOPLAM YOLCU</div>
-                    <div class="metric-value">{toplam}</div>
+                    <div class="metric-value">{kalibre_toplam}</div>
                 </div>
             """, unsafe_allow_html=True)
             c_arac.markdown(f"""
@@ -420,7 +420,11 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.1, 1.1, 1.2, 1.8])
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
-                c3.write(f"{bus['gunlukYolcu']}")
+                
+                # SATIR YOLCU KALİBRASYONU
+                h_yolcu = bus.get('gunlukYolcu', 0) or 0
+                k_yolcu = int(h_yolcu * 1.23)
+                c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
                 c4.link_button("📍", maps)
@@ -500,14 +504,21 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     # --- METRİKLER (4 Sütun) ---
     hat_no = arac.get('hatkodu') or "---"
     hiz = f"{arac.get('hiz')} km/s"
-    yolcu = f"{arac.get('seferYolcu')}"
-    toplam = f"{arac.get('gunlukYolcu')}"
+    
+    # KALİBRASYONLU YOLCU VERİSİ
+    ham_yolcu_anlik = arac.get('seferYolcu', 0) or 0
+    # Anlık yolcu verisi genelde sistemden doğru gelir ama yine de %23 isteniyorsa burası da artırılabilir. 
+    # Ancak genelde toplam artırılır. İsteğe binaen sadece toplamı artırıyorum ama anlık istenirse buraya eklenebilir.
+    # Şimdilik sadece TOPLAM GÜNLÜK YOLCUYU artırıyorum.
+    
+    ham_toplam = arac.get('gunlukYolcu', 0) or 0
+    kalibre_toplam = int(ham_toplam * 1.23)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
     c2.markdown(f"""<div class="metric-card"><div class="metric-title">HIZ</div><div class="metric-value">{hiz}</div></div>""", unsafe_allow_html=True)
-    c3.markdown(f"""<div class="metric-card"><div class="metric-title">ANLIK</div><div class="metric-value" style="color:#00bc8c;">{yolcu}</div></div>""", unsafe_allow_html=True)
-    c4.markdown(f"""<div class="metric-card"><div class="metric-title">TOPLAM</div><div class="metric-value">{toplam}</div></div>""", unsafe_allow_html=True)
+    c3.markdown(f"""<div class="metric-card"><div class="metric-title">ANLIK</div><div class="metric-value" style="color:#00bc8c;">{ham_yolcu_anlik}</div></div>""", unsafe_allow_html=True)
+    c4.markdown(f"""<div class="metric-card"><div class="metric-title">TOPLAM</div><div class="metric-value">{kalibre_toplam}</div></div>""", unsafe_allow_html=True)
 
     # --- ADRES KARTI ---
     lat = float(arac['enlem'])
@@ -535,5 +546,8 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     ).add_to(m)
     st_folium(m, width=700, height=350)
 
+# --- GLOBAL OTOMATİK YENİLEME (HER EKRAN İÇİN GEÇERLİ) ---
+# Eğer herhangi bir arama (Hat veya Araç) aktifse 20 saniyede bir sayfayı yeniler.
+if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
