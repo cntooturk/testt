@@ -70,11 +70,10 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v51", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v52", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             parts = loc.address.split(",")
-            # Mahalle ve Cadde/Sokak bilgisini al
             return f"{parts[0]}, {parts[1]}" if len(parts) > 1 else parts[0]
     except:
         return "Adres alınıyor..."
@@ -106,9 +105,30 @@ if 'takip_modu' not in st.session_state:
     st.session_state.takip_modu = False
 if 'aktif_arama' not in st.session_state:
     st.session_state.aktif_arama = None
+if 'son_veri_zamani' not in st.session_state:
+    st.session_state.son_veri_zamani = time.time()
+# Hat sorgusundaki ham veriyi saklamak için
+if 'hat_ham_veri' not in st.session_state:
+    st.session_state.hat_ham_veri = []
+
+# --- CALLBACK FONKSİYONU ---
+# Seçim kutusu değiştiği an bu çalışır
+def arac_secildi_callback():
+    # Seçilen plakayı session'dan al
+    secim = st.session_state.selectbox_secimi
+    if secim and secim != "Seçiniz...":
+        # Ham veriden o aracı bul
+        ham_veri = st.session_state.hat_ham_veri
+        hedef_arac = next((x for x in ham_veri if x['plaka'] == secim), None)
+        if hedef_arac:
+            hedef_arac['hatkodu'] = st.session_state.aktif_arama
+            st.session_state.secilen_plaka = hedef_arac
+            st.session_state.takip_modu = True
+            # Ekran hemen sıfırlanmasın diye ufak bir bekleme
+            time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v51")
+st.title("🚌 CNTOOTURK LIVE v52")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -125,6 +145,7 @@ if not st.session_state.takip_modu:
         st.session_state.aktif_arama = giris_text.upper().strip()
         st.session_state.takip_modu = False 
         st.session_state.secilen_plaka = None
+        st.session_state.hat_ham_veri = [] # Yeni aramada temizle
 
 # --- LİSTELEME MODU ---
 if st.session_state.aktif_arama and not st.session_state.takip_modu:
@@ -133,36 +154,37 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
     # 3 (BOŞ ARAÇLAR)
     if giris == "3" or giris == "0":
         st.subheader("💤 Boş / Servis Dışı")
+        # Cache mantığı olmadığı için her seferinde çekmek daha güvenli
         veriler = []
         with st.spinner("Taranıyor..."):
             for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
                 res = veri_cek(k)
                 if res: veriler.extend(res)
         
+        st.session_state.hat_ham_veri = veriler # Kaydet
+        
         if veriler:
             plaka_listesi = [v["plaka"] for v in veriler]
-            secim = st.selectbox("İzlenecek Aracı Seçin:", ["Seçiniz..."] + plaka_listesi)
             
-            # BUTON İLE KESİN GEÇİŞ
-            if st.button("🔴 CANLI TAKİBİ BAŞLAT", type="primary", use_container_width=True):
-                if secim and secim != "Seçiniz...":
-                    secilen = next((x for x in veriler if x["plaka"] == secim), None)
-                    if secilen:
-                        st.session_state.secilen_plaka = secilen
-                        st.session_state.takip_modu = True
-                        st.rerun()
+            # CALLBACK KULLANIMI: on_change tetiklendiğinde fonksiyon çalışır
+            st.selectbox(
+                "İzlenecek Aracı Seçin:", 
+                ["Seçiniz..."] + plaka_listesi,
+                key="selectbox_secimi",
+                on_change=arac_secildi_callback
+            )
 
     # PLAKA SORGUSU
     elif len(giris) > 4 and giris[0].isdigit():
         hedef = plaka_duzenle(giris)
         with st.spinner(f"{hedef} aranıyor..."):
             bulunan = None
-            res = veri_cek(hedef) # Hızlı
+            res = veri_cek(hedef)
             if res:
                 bulunan = res[0]
                 bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
             
-            if not bulunan: # Detaylı
+            if not bulunan:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                     future_to_hat = {executor.submit(veri_cek, hat): hat for hat in TUM_HATLAR}
                     for future in concurrent.futures.as_completed(future_to_hat):
@@ -187,6 +209,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         st.subheader(f"📊 Hat: {giris}")
         with st.spinner("Veriler yükleniyor..."):
             data = veri_cek(giris)
+            st.session_state.hat_ham_veri = data # Hafızaya al
         
         if data:
             toplam = sum(b.get('gunlukYolcu', 0) for b in data)
@@ -206,19 +229,17 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                          column_config={"KONUM": st.column_config.LinkColumn("Konum", display_text="📍 Harita")},
                          hide_index=True, use_container_width=True)
             
-            st.markdown("### 👇 İzleme Paneli")
-            plaka_listesi = [b['plaka'] for b in data]
-            secim = st.selectbox("Araç Seçiniz:", ["Seçiniz..."] + plaka_listesi, key="arac_secim_box")
+            st.warning("👇 İzlemek istediğiniz aracı aşağıdan seçin:")
             
-            # BUTON İLE KESİN GEÇİŞ (HATA ÇÖZÜMÜ)
-            if st.button("🔴 CANLI TAKİBİ BAŞLAT", type="primary", use_container_width=True):
-                if secim and secim != "Seçiniz...":
-                    hedef_arac = next((x for x in data if x['plaka'] == secim), None)
-                    if hedef_arac:
-                        hedef_arac['hatkodu'] = giris
-                        st.session_state.secilen_plaka = hedef_arac
-                        st.session_state.takip_modu = True
-                        st.rerun()
+            plaka_listesi = [b['plaka'] for b in data]
+            
+            # CALLBACK KULLANIMI: Seçildiği an tetiklenir
+            st.selectbox(
+                "Araç Seçiniz:", 
+                ["Seçiniz..."] + plaka_listesi,
+                key="selectbox_secimi",
+                on_change=arac_secildi_callback
+            )
         else:
             st.warning("Hat verisi alınamadı.")
 
@@ -236,9 +257,11 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 
     # VERİ TAZELEME
     taze_veri = None
+    hat_verisi_tam = [] 
+    
     if hedef_hat:
-        res = veri_cek(hedef_hat)
-        taze_veri = next((x for x in res if x['plaka'] == hedef_plaka), None)
+        hat_verisi_tam = veri_cek(hedef_hat)
+        taze_veri = next((x for x in hat_verisi_tam if x['plaka'] == hedef_plaka), None)
     
     if not taze_veri:
         res = veri_cek(plaka_duzenle(hedef_plaka))
@@ -282,5 +305,6 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     ).add_to(m)
     st_folium(m, width=700, height=350)
 
+    # 20 SANİYE OTOMATİK YENİLEME
     time.sleep(20)
     st.rerun()
