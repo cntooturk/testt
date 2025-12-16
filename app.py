@@ -25,43 +25,51 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
 
-# --- HAT LİSTESİ ---
+# --- AKILLI SIRALANMIŞ HAT LİSTESİ (v57 REVİZE) ---
+# Kural: 1-60 Arası -> B Serisi -> 61+ ve Diğerleri
 TUM_HATLAR = [
-    "B1B", "14L3", "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
+    # --- 1. GRUP: 1 ile 60 ARASI (EN YOĞUN ŞEHİR İÇİ) ---
+    "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
     "2B", "2BT", "2C", "2E", "2G1", "2G2", "2GH", "2GK", "2GM", "2GY", "2K", "2KÇ", 
     "2M", "2MU", "2U", "3C", "3G", "3İ", "3MU", "3P", "4A", "4B", "4G", "4İ", 
     "5A", "5B", "5E", "5G", "6A", "6E", "6F", "6F1", "6F2", "6FD", "6K1", "7A", 
-    "7B", "7C", "7S", "8L", "9D", "9M", "9PA", "14F", "14L", "14L2", "14N", 
+    "7B", "7C", "7S", "8L", "9D", "9M", "9PA", "14F", "14L", "14L2", "14L3", "14N", 
     "14U", "15", "15A", "15B", "15D", "15H", "16A", "16İ", "16S", "17A", "17B", 
     "17C", "17D", "17E", "17F", "17H", "17M", "17S", "17Y", "18", "18B", "18İ", 
     "18Y", "19A", "19B", "19C", "19D", "19E", "19İ", "20", "20A", "21", "21C", 
     "21CK", "22C", "23", "23A", "24B", "24D", "25", "25A", "25B", "25D", "27A", 
     "28", "28A", "29A", "30", "31A", "35B", "35C", "35E1", "35E2", "35G", "35H", 
     "35R", "35S", "35SE", "35U", "36", "36A", "37", "38", "38B", "38B2", "38D", 
-    "38D2", "38G", "40H", "43A", "43D", "43H", "43HB", "60B", "60K", "91", "91G", 
-    "92", "92B", "93", "93E", "94", "95", "95A", "95B", "96", "97", "97A", "97B", 
-    "97F", "97G", "98", "98E", "99", "101", "102", "103", "103A", "104", "105", 
-    "111A", "111B", "112", "112A", "113", "113A", "114", "114A", "115", "116", 
-    "116C", "117", "118A", "119", "119A", "120", "130", "131", "132", "132İ", 
-    "133", "134", "134F", "135", "135H", "136", "137", "139", "140", "401", "501", 
-    "601", "601U", "610", "610H", "611", "612", "612T", "613", "614", "615", "616", 
-    "616H", "617", "617H", "618", "619", "620", "620K", "621", "622", "623", "630", 
-    "631", "632", "642", "675", "741M", "755B", "772", "801", "811", "811D", "812S", 
-    "812T", "813C", "813D", "813H", "814", "815", "816", "817", "817TK", "818", 
-    "818H", "820", "901", "903", "911A", "912", "913", "914", "914A", "991", "992", 
-    "B1", "B2", "B2A", "B2C", "B2D", "B2K", "B3", "B3K", "B4", "B5", "B6", 
+    "38D2", "38G", "40H", "43A", "43D", "43H", "43HB", "60B", "60K",
+
+    # --- 2. GRUP: B SERİSİ (BESLEME HATLARI) ---
+    "B1", "B1B", "B2", "B2A", "B2C", "B2D", "B2K", "B3", "B3K", "B4", "B5", "B6", 
     "B7", "B8", "B9", "B10", "B10K", "B12", "B13", "B15", "B15C", "B16A", "B16B", 
     "B17", "B17A", "B17B", "B20A", "B20B", "B20C", "B20D", "B20G", "B22", "B22K", 
     "B24", "B25", "B27", "B29", "B30", "B31", "B31A", "B32", "B32A", "B33", "B33A", 
     "B33G", "B33H", "B33K", "B33M", "B34", "B34U", "B35", "B35K1", "B35K2", "B35M", 
     "B36", "B36A", "B36C", "B36M", "B36U", "B37", "B38", "B39", "B39K", "B40", 
-    "B41B", "B41C", "B42A", "B43", "B44B", "B46", "D1", "D1A", "D1B", "D2", "D2A", 
-    "D2B", "D3", "D4", "D4A", "D5", "D6", "D6A", "D7", "D7A", "D8", "D8A", "D9", 
-    "D10", "D11", "D11A", "D11B", "D12", "D12A", "D12E", "D12H", "D12R", "D12Y", 
-    "D13", "D13A", "D14", "D14A", "D15", "D16", "D16A", "D16B", "D17", "D17B", 
-    "D18", "D19", "D20", "D21", "D22", "D23", "D24", "D24E", "D25", "D26", "E2", 
-    "E12", "E13", "F1", "F3", "G1", "G2", "G3", "G4S", "G4T", "G5", "G6", "G7", 
-    "G8", "H1", "H2", "H3", "H3B", "H3D", "H4", "S1", "S2"
+    "B41B", "B41C", "B42A", "B43", "B44B", "B46", 
+
+    # --- 3. GRUP: 61 VE ÜZERİ + DİĞER HARFLER ---
+    "91", "91G", "92", "92B", "93", "93E", "94", "95", "95A", "95B", "96", "97", 
+    "97A", "97B", "97F", "97G", "98", "98E", "99", "101", "102", "103", "103A", 
+    "104", "105", "111A", "111B", "112", "112A", "113", "113A", "114", "114A", 
+    "115", "116", "116C", "117", "118A", "119", "119A", "120", "130", "131", 
+    "132", "132İ", "133", "134", "134F", "135", "135H", "136", "137", "139", 
+    "140", "401", "501", "601", "601U", "610", "610H", "611", "612", "612T", 
+    "613", "614", "615", "616", "616H", "617", "617H", "618", "619", "620", 
+    "620K", "621", "622", "623", "630", "631", "632", "642", "675", "741M", 
+    "755B", "772", "801", "811", "811D", "812S", "812T", "813C", "813D", "813H", 
+    "814", "815", "816", "817", "817TK", "818", "818H", "820", "901", "903", 
+    "911A", "912", "913", "914", "914A", "991", "992", "D1", "D1A", "D1B", 
+    "D2", "D2A", "D2B", "D3", "D4", "D4A", "D5", "D6", "D6A", "D7", "D7A", 
+    "D8", "D8A", "D9", "D10", "D11", "D11A", "D11B", "D12", "D12A", "D12E", 
+    "D12H", "D12R", "D12Y", "D13", "D13A", "D14", "D14A", "D15", "D16", "D16A", 
+    "D16B", "D17", "D17B", "D18", "D19", "D20", "D21", "D22", "D23", "D24", 
+    "D24E", "D25", "D26", "E2", "E12", "E13", "F1", "F3", "G1", "G2", "G3", 
+    "G4S", "G4T", "G5", "G6", "G7", "G8", "H1", "H2", "H3", "H3B", "H3D", "H4", 
+    "S1", "S2"
 ]
 
 def get_turkey_time():
@@ -70,7 +78,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v55", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v57", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -107,6 +115,7 @@ def veri_cek(keyword):
     except: return []
     return []
 
+# Harita Linkleri
 def google_maps_link(lat, lon):
     return f"https://www.google.com/maps?q={lat},{lon}"
 
@@ -136,7 +145,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v55")
+st.title("🚌 CNTOOTURK LIVE v57")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -187,10 +196,11 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 bulunan = res[0]
                 bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
             
-            # ADIM 2: Hat Taraması
+            # ADIM 2: Hat Taraması (Sıralı Liste)
             if not bulunan:
                 status.write("🌍 Tüm hatlar taranıyor...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
+                    # Sıralı liste (1-60 -> B -> Diğer) sırasıyla işlenir
                     future_to_hat = {executor.submit(veri_cek, hat): hat for hat in TUM_HATLAR}
                     for future in concurrent.futures.as_completed(future_to_hat):
                         data = future.result()
@@ -258,25 +268,21 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
 # --- 2. MOD: CANLI TAKİP ---
 if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
-    # GERİ DÖNÜŞ MANTIĞI (ÖNEMLİ DEĞİŞİKLİK BURADA)
+    # GERİ DÖNÜŞ MANTIĞI
     arama_terimi = st.session_state.aktif_arama
-    
-    # Eğer Plaka Sorgusuysa (Sayı ile başlıyorsa ve uzunsa) -> ANA MENÜYE DÖN
     is_plaka = len(arama_terimi) > 4 and arama_terimi[0].isdigit()
     
     if is_plaka:
         if st.button("🏠 Ana Menüye Dön"):
             st.session_state.takip_modu = False
             st.session_state.secilen_plaka = None
-            st.session_state.aktif_arama = None # Aramayı temizle ki başa dönsün
+            st.session_state.aktif_arama = None
             st.session_state.hat_ham_veri = []
             st.rerun()
     else:
-        # Hat Sorgusuysa -> LİSTEYE DÖN
         if st.button("⬅️ Listeye Geri Dön"):
             st.session_state.takip_modu = False
             st.session_state.secilen_plaka = None
-            # Arama terimini SİLMİYORUZ ki listeye dönsün
             st.rerun()
 
     eski_veri = st.session_state.secilen_plaka
