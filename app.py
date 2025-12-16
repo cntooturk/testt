@@ -19,25 +19,62 @@ st.set_page_config(page_title="CNTOOTURK Live", page_icon="🚌", layout="center
 
 st.markdown("""
     <style>
-        .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
-        [data-testid="column"] { padding: 0px !important; margin: 0px !important; }
+        /* Ana Blok Sıkıştırma (Listeyi etkiler) */
+        .block-container {
+            padding-top: 0.5rem;
+            padding-bottom: 1rem;
+        }
+        [data-testid="column"] {
+            padding: 0px !important;
+            margin: 0px !important;
+        }
+        
+        /* BUTON VE SEMBOL KÜÇÜLTME */
         .stButton button {
-            height: 28px !important;
+            height: 22px !important;
+            min_height: 22px !important;
             padding-top: 0px !important;
             padding-bottom: 0px !important;
-            font-size: 12px !important;
-            margin-top: 2px !important;
-            width: 100%;
+            font-size: 10px !important;
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
+            line-height: 20px !important;
         }
-        hr { margin: 0px 0px !important; border-top: 1px solid #eee; }
+        
+        /* LİNK BUTONLARI */
+        .stLinkButton a {
+            height: 22px !important;
+            min_height: 22px !important;
+            font-size: 10px !important;
+            padding: 0px 8px !important;  
+            line-height: 20px !important;
+            margin-top: 1px !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+        }
+
+        /* METRİKLER */
+        div[data-testid="stMetricLabel"] {
+            font-size: 10px !important;
+            margin-bottom: 0px !important;
+        }
+        div[data-testid="stMetricValue"] {
+            font-size: 16px !important;
+            padding-bottom: 0px !important;
+        }
+
+        /* GENEL YAZILAR (Listeyi sıkı tutar) */
         p, .stMarkdown {
-            font-size: 13px !important;
+            font-size: 12px !important;
             margin-bottom: 0px !important;
             margin-top: 0px !important;
-            padding-top: 2px !important; 
         }
-        .stLinkButton { height: 28px !important; margin-top: 2px !important; }
-        .stLinkButton a { padding-top: 2px !important; padding-bottom: 2px !important; }
+        
+        hr {
+            margin: 2px 0px !important;
+            border-top: 1px solid #f0f0f0;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -101,7 +138,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v67_final", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v70_design", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -167,7 +204,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v67")
+st.title("🚌 CNTOOTURK LIVE v70")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -210,9 +247,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         st.session_state.hat_ham_veri = temiz_veriler
         
         if temiz_veriler:
-            # Boşluğu almak için özel stil
             st.markdown(f'<p style="margin-bottom: 2px; font-weight:bold;">Toplam {len(temiz_veriler)} araç listeleniyor:</p>', unsafe_allow_html=True)
-            
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
             c1.markdown("**PLAKA**")
             c2.markdown("**HIZ**")
@@ -302,11 +337,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
             st.metric("Toplam Yolcu", f"{toplam}", delta=f"{len(temiz_data)} Araç")
             
-            # BOŞLUĞU ALINMIŞ YAZI
             st.markdown(f'<p style="margin-bottom: 2px; font-weight:bold;">Listelenen Araç Sayısı: {len(temiz_data)}</p>', unsafe_allow_html=True)
             st.markdown("---")
             
-            # --- BAŞLIKLAR ---
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
             c1.markdown("**PLAKA**")
             c2.markdown("**HIZ**")
@@ -315,7 +348,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             c5.markdown("**İZLE**")
             st.divider()
 
-            # LİSTE
             for i, bus in enumerate(temiz_data):
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
                 
@@ -380,10 +412,45 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         st.toast("⚠️ Veri güncellenemedi.")
 
     st.markdown("---")
-    st.success(f"🔴 **{arac['plaka']}** Canlı İzleniyor")
+    
+    # --- TASARIM FİX BURADA BAŞLIYOR (ÖZEL HTML KUTULAR) ---
+    
+    # 1. CANLI İZLEME BAŞLIĞI (YEŞİL)
+    st.markdown(f"""
+        <div style="
+            background-color: #d4edda; 
+            color: #155724; 
+            padding: 10px; 
+            border-radius: 5px; 
+            border: 1px solid #c3e6cb;
+            text-align: center; 
+            margin-bottom: 5px;
+            font-size: 16px;
+            font-weight: bold;
+        ">
+            🔴 {arac['plaka']} Canlı İzleniyor
+        </div>
+    """, unsafe_allow_html=True)
 
+    # 2. SÜRÜCÜ BİLGİSİ (MAVİ)
     surucu = arac.get('surucu') or "Belirtilmemiş"
-    st.info(f"👮 **Sürücü:** {surucu}")
+    st.markdown(f"""
+        <div style="
+            background-color: #d1ecf1; 
+            color: #0c5460; 
+            padding: 10px; 
+            border-radius: 5px; 
+            border: 1px solid #bee5eb;
+            text-align: center; 
+            margin-bottom: 15px;
+            font-size: 14px;
+            font-weight: bold;
+        ">
+            👮 Sürücü: {surucu}
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # -----------------------------------------------------
 
     hat_no = arac.get('hatkodu') or "---"
     c1, c2, c3, c4 = st.columns(4)
