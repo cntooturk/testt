@@ -14,30 +14,65 @@ from geopy.geocoders import Nominatim
 # SSL Hata Gizleme
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# --- AYARLAR VE ULTRA KOMPAKT CSS ---
+# --- AYARLAR VE ULTRA SLIM CSS ---
 st.set_page_config(page_title="CNTOOTURK Live", page_icon="🚌", layout="centered")
 
 st.markdown("""
     <style>
-        .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
-        [data-testid="column"] { padding: 0px !important; margin: 0px !important; }
+        /* Ana Blok Sıkıştırma */
+        .block-container {
+            padding-top: 0.5rem;
+            padding-bottom: 1rem;
+        }
+        [data-testid="column"] {
+            padding: 0px !important;
+            margin: 0px !important;
+        }
+        
+        /* BUTON VE SEMBOL KÜÇÜLTME */
         .stButton button {
-            height: 28px !important;
+            height: 24px !important;       /* Buton yüksekliği */
+            min_height: 24px !important;
             padding-top: 0px !important;
             padding-bottom: 0px !important;
-            font-size: 12px !important;
-            margin-top: 2px !important;
-            width: 100%;
+            font-size: 11px !important;    /* Yazı ve Sembol Boyutu */
+            margin-top: 1px !important;
+            margin-bottom: 1px !important;
+            line-height: 1 !important;
         }
-        hr { margin: 0px 0px !important; border-top: 1px solid #eee; }
+        
+        /* LİNK BUTONLARI (Konum) */
+        .stLinkButton a {
+            height: 24px !important;
+            min_height: 24px !important;
+            font-size: 11px !important;
+            padding: 0px !important;
+            line-height: 22px !important;
+            margin-top: 1px !important;
+        }
+
+        /* METRİK (Hız, Yolcu vb.) KÜÇÜLTME */
+        div[data-testid="stMetricLabel"] {
+            font-size: 10px !important;
+            margin-bottom: 0px !important;
+        }
+        div[data-testid="stMetricValue"] {
+            font-size: 16px !important;
+            padding-bottom: 0px !important;
+        }
+
+        /* GENEL YAZILAR */
         p, .stMarkdown {
-            font-size: 13px !important;
+            font-size: 12px !important;
             margin-bottom: 0px !important;
             margin-top: 0px !important;
-            padding-top: 2px !important; 
         }
-        .stLinkButton { height: 28px !important; margin-top: 2px !important; }
-        .stLinkButton a { padding-top: 2px !important; padding-bottom: 2px !important; }
+        
+        /* ÇİZGİLERİ İNCELT */
+        hr {
+            margin: 2px 0px !important;
+            border-top: 1px solid #f0f0f0;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -101,7 +136,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v67_final", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v68_slim", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -167,7 +202,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v67")
+st.title("🚌 CNTOOTURK LIVE v68")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -210,9 +245,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         st.session_state.hat_ham_veri = temiz_veriler
         
         if temiz_veriler:
-            # Boşluğu almak için özel stil
             st.markdown(f'<p style="margin-bottom: 2px; font-weight:bold;">Toplam {len(temiz_veriler)} araç listeleniyor:</p>', unsafe_allow_html=True)
-            
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
             c1.markdown("**PLAKA**")
             c2.markdown("**HIZ**")
@@ -302,11 +335,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
             st.metric("Toplam Yolcu", f"{toplam}", delta=f"{len(temiz_data)} Araç")
             
-            # BOŞLUĞU ALINMIŞ YAZI
             st.markdown(f'<p style="margin-bottom: 2px; font-weight:bold;">Listelenen Araç Sayısı: {len(temiz_data)}</p>', unsafe_allow_html=True)
             st.markdown("---")
             
-            # --- BAŞLIKLAR ---
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
             c1.markdown("**PLAKA**")
             c2.markdown("**HIZ**")
@@ -315,7 +346,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             c5.markdown("**İZLE**")
             st.divider()
 
-            # LİSTE
             for i, bus in enumerate(temiz_data):
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
                 
