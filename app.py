@@ -25,10 +25,9 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
 
-# --- AKILLI SIRALANMIŞ HAT LİSTESİ (v57 REVİZE) ---
-# Kural: 1-60 Arası -> B Serisi -> 61+ ve Diğerleri
+# --- AKILLI SIRALANMIŞ HAT LİSTESİ ---
 TUM_HATLAR = [
-    # --- 1. GRUP: 1 ile 60 ARASI (EN YOĞUN ŞEHİR İÇİ) ---
+    # 1. GRUP: 1-60 ARASI
     "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
     "2B", "2BT", "2C", "2E", "2G1", "2G2", "2GH", "2GK", "2GM", "2GY", "2K", "2KÇ", 
     "2M", "2MU", "2U", "3C", "3G", "3İ", "3MU", "3P", "4A", "4B", "4G", "4İ", 
@@ -42,7 +41,7 @@ TUM_HATLAR = [
     "35R", "35S", "35SE", "35U", "36", "36A", "37", "38", "38B", "38B2", "38D", 
     "38D2", "38G", "40H", "43A", "43D", "43H", "43HB", "60B", "60K",
 
-    # --- 2. GRUP: B SERİSİ (BESLEME HATLARI) ---
+    # 2. GRUP: B SERİSİ
     "B1", "B1B", "B2", "B2A", "B2C", "B2D", "B2K", "B3", "B3K", "B4", "B5", "B6", 
     "B7", "B8", "B9", "B10", "B10K", "B12", "B13", "B15", "B15C", "B16A", "B16B", 
     "B17", "B17A", "B17B", "B20A", "B20B", "B20C", "B20D", "B20G", "B22", "B22K", 
@@ -51,7 +50,7 @@ TUM_HATLAR = [
     "B36", "B36A", "B36C", "B36M", "B36U", "B37", "B38", "B39", "B39K", "B40", 
     "B41B", "B41C", "B42A", "B43", "B44B", "B46", 
 
-    # --- 3. GRUP: 61 VE ÜZERİ + DİĞER HARFLER ---
+    # 3. GRUP: DİĞERLERİ
     "91", "91G", "92", "92B", "93", "93E", "94", "95", "95A", "95B", "96", "97", 
     "97A", "97B", "97F", "97G", "98", "98E", "99", "101", "102", "103", "103A", 
     "104", "105", "111A", "111B", "112", "112A", "113", "113A", "114", "114A", 
@@ -78,23 +77,41 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v57", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v58_fix", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
-            road = address.get('road', '') 
-            neighbourhood = address.get('neighbourhood', '') 
-            suburb = address.get('suburb', '') 
             
-            mahalle_kullan = neighbourhood if neighbourhood else suburb
+            # 1. YOL BİLGİSİ
+            road = address.get('road', '')
+            if not road:
+                road = address.get('pedestrian', '') # Yedek
             
-            if road and mahalle_kullan:
-                return f"{road}, {mahalle_kullan}"
+            # 2. MAHALLE BİLGİSİ (Hiyerarşik Arama)
+            mahalle = ""
+            # Türkiye verilerinde mahalle bu key'lerden birinde olabilir
+            potential_keys = ['neighbourhood', 'quarter', 'suburb', 'residential', 'village', 'city_district']
+            
+            for key in potential_keys:
+                if address.get(key):
+                    mahalle = address.get(key)
+                    break # Bulduğumuz an çıkalım
+            
+            # 3. BİRLEŞTİRME
+            if road and mahalle:
+                return f"{road}, {mahalle}"
             elif road:
-                return f"{road}, {suburb}"
+                # Mahalle yoksa yanına ilçe koymayı dene
+                district = address.get('district', '')
+                if district: return f"{road}, {district}"
+                return road
+            elif mahalle:
+                return mahalle
             else:
+                # Hiçbiri yoksa klasik yöntem
                 parts = loc.address.split(",")
                 return f"{parts[0]}, {parts[1]}" if len(parts) > 1 else parts[0]
+                
     except:
         return "Adres alınıyor..."
     return "Adres alınıyor..."
@@ -145,7 +162,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v57")
+st.title("🚌 CNTOOTURK LIVE v58")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -196,11 +213,10 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 bulunan = res[0]
                 bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
             
-            # ADIM 2: Hat Taraması (Sıralı Liste)
+            # ADIM 2: Hat Taraması (Sıralı)
             if not bulunan:
                 status.write("🌍 Tüm hatlar taranıyor...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
-                    # Sıralı liste (1-60 -> B -> Diğer) sırasıyla işlenir
                     future_to_hat = {executor.submit(veri_cek, hat): hat for hat in TUM_HATLAR}
                     for future in concurrent.futures.as_completed(future_to_hat):
                         data = future.result()
@@ -327,6 +343,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     lat = float(arac['enlem'])
     lon = float(arac['boylam'])
     
+    # ADRES
     adres = get_address(lat, lon)
     st.warning(f"📍 {adres}")
 
