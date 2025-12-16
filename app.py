@@ -25,7 +25,7 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
 
-# --- TAM HAT LİSTESİ (Tarama için gerekli) ---
+# --- HAT LİSTESİ ---
 TUM_HATLAR = [
     "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
     "2B", "2BT", "2C", "2E", "2G1", "2G2", "2GH", "2GK", "2GM", "2GY", "2K", "2KÇ", 
@@ -69,18 +69,15 @@ def get_turkey_time():
     return datetime.now(tz).strftime('%H:%M:%S')
 
 def get_address(lat, lon):
-    """Adres Çözümleme"""
     try:
-        # Timeout düşük tutuldu
-        geolocator = Nominatim(user_agent="cntooturk_v43", timeout=2)
+        geolocator = Nominatim(user_agent="cntooturk_v44", timeout=2)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
-            # Sadece Mahalle ve Cadde/Sokak alalım
             parts = loc.address.split(",")
             return f"{parts[0]}, {parts[1]}" if len(parts) > 1 else parts[0]
     except:
-        return "Adres servisine ulaşılamadı"
-    return "Konum..."
+        return "Adres alınıyor..."
+    return "Adres alınıyor..."
 
 def plaka_duzenle(plaka_ham):
     try:
@@ -88,26 +85,18 @@ def plaka_duzenle(plaka_ham):
         match = re.match(r"(\d+)([A-Z]+)(\d+)", p)
         if match: return f"{match.group(1)} {match.group(2)} {match.group(3)}"
         return p
-    except:
-        return plaka_ham
+    except: return plaka_ham
 
 def veri_cek(keyword):
     try:
-        # Timeout 5 sn (Hız için)
-        r = requests.post(API_URL, headers=HEADERS, json={"keyword": keyword}, timeout=5, verify=False)
+        r = requests.post(API_URL, headers=HEADERS, json={"keyword": keyword}, timeout=8, verify=False)
         if r.status_code == 200:
             return r.json().get("result", [])
-    except:
-        return []
+    except: return []
     return []
 
 def google_maps_link(lat, lon):
     return f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
-
-# --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v43")
-st.caption(f"🕒 Saat: {get_turkey_time()} | ⚡ Yenileme: 20 Sn")
-st.markdown("---")
 
 # --- SESSION STATE ---
 if 'secilen_plaka' not in st.session_state:
@@ -117,145 +106,140 @@ if 'takip_modu' not in st.session_state:
 if 'aktif_arama' not in st.session_state:
     st.session_state.aktif_arama = None
 
-# GİRİŞ
-col_input, col_btn = st.columns([3, 1])
-with col_input:
-    giris_text = st.text_input("Giriş:", placeholder="Örn: 16M10171 veya B5", key="giris_input")
-with col_btn:
-    st.write("") 
-    st.write("") 
-    btn_baslat = st.button("SORGULA", type="primary")
+# --- ARAYÜZ BAŞLANGICI ---
+st.title("🚌 CNTOOTURK LIVE v44")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
-if btn_baslat and giris_text:
-    st.session_state.aktif_arama = giris_text.upper().strip()
-    st.session_state.takip_modu = False 
-    st.session_state.secilen_plaka = None
+# Eğer TAKİP MODUNDA DEĞİLSEK arama kutusunu göster
+if not st.session_state.takip_modu:
+    col_input, col_btn = st.columns([3, 1])
+    with col_input:
+        giris_text = st.text_input("Giriş:", placeholder="Örn: 16M10171 veya B5", key="giris_input")
+    with col_btn:
+        st.write("") 
+        st.write("") 
+        btn_baslat = st.button("SORGULA", type="primary")
 
-# --- ARAMA MANTIĞI ---
-if st.session_state.aktif_arama:
+    if btn_baslat and giris_text:
+        st.session_state.aktif_arama = giris_text.upper().strip()
+        st.session_state.takip_modu = False 
+        st.session_state.secilen_plaka = None
+
+# --- 1. MOD: LİSTELEME VE SEÇİM ---
+# Takip modunda değilsek ve bir arama varsa listeyi göster
+if st.session_state.aktif_arama and not st.session_state.takip_modu:
     giris = st.session_state.aktif_arama
     
-    # 1. SENARYO: BOŞ ARAÇLAR (3)
+    # 3 (BOŞ ARAÇLAR)
     if giris == "3" or giris == "0":
-        st.subheader("💤 Boş / Servis Dışı Araçlar")
+        st.subheader("💤 Boş / Servis Dışı")
         veriler = []
-        if not st.session_state.secilen_plaka:
-            with st.spinner("Taranıyor..."):
-                for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
-                    res = veri_cek(k)
-                    if res: veriler.extend(res)
-        else:
-             for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
-                    res = veri_cek(k)
-                    if res: veriler.extend(res)
+        with st.spinner("Taranıyor..."):
+            for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
+                res = veri_cek(k)
+                if res: veriler.extend(res)
         
         if veriler:
             plaka_listesi = [v["plaka"] for v in veriler]
-            index_val = 0
-            if st.session_state.secilen_plaka and st.session_state.secilen_plaka['plaka'] in plaka_listesi:
-                index_val = plaka_listesi.index(st.session_state.secilen_plaka['plaka'])
-
-            secim = st.selectbox("Seçiniz:", ["Seçiniz..."] + plaka_listesi, index=index_val)
+            secim = st.selectbox("İzlenecek Aracı Seçin:", ["Seçiniz..."] + plaka_listesi)
             
             if secim and secim != "Seçiniz...":
-                if not st.session_state.secilen_plaka or st.session_state.secilen_plaka['plaka'] != secim:
-                    secilen_arac = next((x for x in veriler if x["plaka"] == secim), None)
-                    st.session_state.secilen_plaka = secilen_arac
-                    st.session_state.takip_modu = True
+                secilen = next((x for x in veriler if x["plaka"] == secim), None)
+                if secilen:
+                    st.session_state.secilen_plaka = secilen
+                    st.session_state.takip_modu = True # MODU DEĞİŞTİRİYORUZ
                     st.rerun()
 
-    # 2. SENARYO: PLAKA SORGUSU (16M...)
+    # PLAKA SORGUSU
     elif len(giris) > 4 and giris[0].isdigit():
         hedef = plaka_duzenle(giris)
-        
-        if not st.session_state.takip_modu:
+        with st.spinner(f"{hedef} aranıyor..."):
             bulunan = None
-            res = veri_cek(hedef)
+            res = veri_cek(hedef) # Hızlı
             if res:
                 bulunan = res[0]
                 bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
             
-            if not bulunan:
-                # Max Workers arttırıldı (10) daha hızlı tarama için
-                with st.status("Detaylı tarama yapılıyor...", expanded=True) as status:
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                        future_to_hat = {executor.submit(veri_cek, hat): hat for hat in TUM_HATLAR}
-                        for future in concurrent.futures.as_completed(future_to_hat):
-                            data = future.result()
-                            for bus in data:
-                                if bus.get("plaka", "").replace(" ","") == hedef.replace(" ",""):
-                                    bulunan = bus
-                                    bulunan['hatkodu'] = future_to_hat[future]
-                                    executor.shutdown(wait=False)
-                                    break
-                            if bulunan: break
-                    status.update(label="Bitti.", state="complete", expanded=False)
+            if not bulunan: # Detaylı
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    future_to_hat = {executor.submit(veri_cek, hat): hat for hat in TUM_HATLAR}
+                    for future in concurrent.futures.as_completed(future_to_hat):
+                        data = future.result()
+                        for bus in data:
+                            if bus.get("plaka", "").replace(" ","") == hedef.replace(" ",""):
+                                bulunan = bus
+                                bulunan['hatkodu'] = future_to_hat[future]
+                                executor.shutdown(wait=False)
+                                break
+                        if bulunan: break
 
             if bulunan:
                 st.session_state.secilen_plaka = bulunan
-                st.session_state.takip_modu = True
+                st.session_state.takip_modu = True # MODU DEĞİŞTİRİYORUZ
                 st.rerun()
             else:
-                st.error(f"❌ {hedef} bulunamadı.")
+                st.error("❌ Araç bulunamadı.")
 
-    # 3. SENARYO: HAT SORGUSU
+    # HAT SORGUSU (B5, 93 vb.)
     else:
-        if not st.session_state.takip_modu:
-            st.subheader(f"📊 Hat: {giris}")
-            with st.spinner("Veriler çekiliyor..."):
-                data = veri_cek(giris)
+        st.subheader(f"📊 Hat: {giris}")
+        with st.spinner("Veriler yükleniyor..."):
+            data = veri_cek(giris)
+        
+        if data:
+            toplam = sum(b.get('gunlukYolcu', 0) for b in data)
+            st.metric("Toplam Yolcu", f"{toplam}", delta=f"{len(data)} Araç")
             
-            if data:
-                toplam = sum(b.get('gunlukYolcu', 0) for b in data)
-                st.metric("Toplam Yolcu", f"{toplam}", delta=f"{len(data)} Araç")
-                
-                tablo_data = []
-                for b in data:
-                    maps_url = google_maps_link(b['enlem'], b['boylam'])
-                    tablo_data.append({
-                        "PLAKA": b['plaka'],
-                        "HIZ": f"{b['hiz']} km/s",
-                        "YOLCU": b['gunlukYolcu'],
-                        "KONUM": maps_url
-                    })
-                
-                st.dataframe(pd.DataFrame(tablo_data), 
-                             column_config={"KONUM": st.column_config.LinkColumn("Konum", display_text="📍 Harita")},
-                             hide_index=True, use_container_width=True)
-                
-                plaka_listesi = [b['plaka'] for b in data]
-                plaka_secim = st.selectbox("Canlı izlemek için araç seç:", ["Seçiniz..."] + plaka_listesi)
-                
-                if plaka_secim and plaka_secim != "Seçiniz...":
-                    hedef_arac = next((x for x in data if x['plaka'] == plaka_secim), None)
-                    if hedef_arac:
-                        hedef_arac['hatkodu'] = giris 
-                        st.session_state.secilen_plaka = hedef_arac
-                        st.session_state.takip_modu = True
-                        st.rerun()
-            else:
-                st.warning("Bu hatta aktif araç yok.")
+            # Tablo
+            tablo_data = []
+            for b in data:
+                maps_url = google_maps_link(b['enlem'], b['boylam'])
+                tablo_data.append({
+                    "PLAKA": b['plaka'],
+                    "HIZ": f"{b['hiz']} km/s",
+                    "YOLCU": b['gunlukYolcu'],
+                    "KONUM": maps_url
+                })
+            
+            st.dataframe(pd.DataFrame(tablo_data), 
+                         column_config={"KONUM": st.column_config.LinkColumn("Konum", display_text="📍 Harita")},
+                         hide_index=True, use_container_width=True)
+            
+            # SEÇİM KUTUSU
+            st.warning("👇 İzlemek istediğiniz aracı aşağıdan seçin:")
+            plaka_listesi = [b['plaka'] for b in data]
+            plaka_secim = st.selectbox("Araç Seçiniz:", ["Seçiniz..."] + plaka_listesi)
+            
+            if plaka_secim and plaka_secim != "Seçiniz...":
+                hedef_arac = next((x for x in data if x['plaka'] == plaka_secim), None)
+                if hedef_arac:
+                    hedef_arac['hatkodu'] = giris # Hat kodunu kaydet
+                    st.session_state.secilen_plaka = hedef_arac
+                    st.session_state.takip_modu = True # MODU DEĞİŞTİRİYORUZ (LİSTEYİ KAPATACAK)
+                    st.rerun()
         else:
-            if st.button("⬅️ Listeye Dön"):
-                st.session_state.takip_modu = False
-                st.session_state.secilen_plaka = None
-                st.rerun()
+            st.warning("Hat verisi alınamadı.")
 
-# --- 4. CANLI TAKİP ---
+# --- 2. MOD: CANLI TAKİP EKRANI ---
+# Eğer takip modu açıksa SADECE BURASI ÇALIŞIR
 if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
+    # GERİ DÖN BUTONU
+    if st.button("⬅️ Listeye Geri Dön"):
+        st.session_state.takip_modu = False
+        st.session_state.secilen_plaka = None
+        st.rerun()
+
+    # VERİYİ TAZELEME
     eski_veri = st.session_state.secilen_plaka
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or eski_veri.get('bulunan_hat') or st.session_state.aktif_arama
-    
+
     taze_veri = None
-    
-    # 1. Bildiğimiz hatta bak
     if hedef_hat:
         res = veri_cek(hedef_hat)
         taze_veri = next((x for x in res if x['plaka'] == hedef_plaka), None)
     
-    # 2. Bulamazsak plakaya sor
     if not taze_veri:
         res = veri_cek(plaka_duzenle(hedef_plaka))
         if res: taze_veri = res[0]
@@ -266,28 +250,26 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         st.session_state.secilen_plaka = taze_veri
     else:
         arac = eski_veri
-        st.toast("⚠️ Veri güncellenemedi, eski konum.")
+        st.toast("⚠️ Bağlantı zayıf, eski konum.")
 
-    # --- EKRAN ---
+    # GÖRSELLEŞTİRME
     st.markdown("---")
-    st.subheader(f"🔴 CANLI İZLEME: {arac['plaka']}")
+    st.success(f"🔴 **{arac['plaka']}** Canlı İzleniyor")
     
     c1, c2, c3, c4 = st.columns(4)
-    surucu = arac.get('surucu') or "Belirtilmemiş"
-
-    c1.info(f"👮 **SÜRÜCÜ**\n\n{surucu}")
-    c2.metric("🚀 HIZ", f"{arac.get('hiz')} km/s")
-    c3.metric("🎫 ANLIK", f"{arac.get('seferYolcu')}")
-    c4.metric("💰 TOPLAM", f"{arac.get('gunlukYolcu')}")
+    surucu = arac.get('surucu') or "Yok"
     
+    c1.metric("Sürücü", surucu)
+    c2.metric("Hız", f"{arac.get('hiz')} km/s")
+    c3.metric("Anlık", f"{arac.get('seferYolcu')}")
+    c4.metric("Toplam", f"{arac.get('gunlukYolcu')}")
+
     lat = float(arac['enlem'])
     lon = float(arac['boylam'])
     
-    # ADRES
-    adres_metni = get_address(lat, lon)
-    st.success(f"📍 **KONUM:** {adres_metni}")
+    adres = get_address(lat, lon)
+    st.info(f"📍 {adres}")
 
-    # HARİTA
     m = folium.Map(location=[lat, lon], zoom_start=15)
     folium.Marker(
         [lat, lon],
@@ -296,7 +278,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         icon=folium.Icon(color="red", icon="bus", prefix="fa")
     ).add_to(m)
     st_folium(m, width=700, height=350)
-    
-    # OTO YENİLEME (20 Saniye - İsteğin üzerine)
+
+    # 20 Saniye sonra sayfayı yenile (Sadece bu bloğu çalıştırır)
     time.sleep(20)
     st.rerun()
