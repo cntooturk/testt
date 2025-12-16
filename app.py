@@ -14,67 +14,94 @@ from geopy.geocoders import Nominatim
 # SSL Hata Gizleme
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# --- AYARLAR VE ULTRA KOMPAKT CSS ---
+# --- AYARLAR VE KOYU TEMA CSS ---
 st.set_page_config(page_title="CNTOOTURK Live", page_icon="🚌", layout="centered")
 
 st.markdown("""
     <style>
-        /* Ana Blok Sıkıştırma (Listeyi etkiler) */
-        .block-container {
-            padding-top: 0.5rem;
-            padding-bottom: 1rem;
-        }
-        [data-testid="column"] {
-            padding: 0px !important;
-            margin: 0px !important;
-        }
+        /* Genel Düzen */
+        .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
+        [data-testid="column"] { padding: 0px !important; margin: 0px !important; }
         
-        /* BUTON VE SEMBOL KÜÇÜLTME */
+        /* LİSTE BUTONLARI (İNCE & KOYU) */
         .stButton button {
             height: 22px !important;
             min_height: 22px !important;
-            padding-top: 0px !important;
-            padding-bottom: 0px !important;
-            font-size: 10px !important;
-            margin-top: 1px !important;
-            margin-bottom: 1px !important;
-            line-height: 20px !important;
+            padding: 0px !important;
+            font-size: 11px !important;
+            margin: 1px 0px !important;
+            background-color: #2b2b2b; 
+            color: #e0e0e0;
+            border: 1px solid #444;
         }
-        
-        /* LİNK BUTONLARI */
+        .stButton button:hover { border-color: #ff4b4b; color: #ff4b4b; }
+
+        /* HARİTA LİNK BUTONLARI */
         .stLinkButton a {
             height: 22px !important;
             min_height: 22px !important;
-            font-size: 10px !important;
-            padding: 0px 8px !important;  
-            line-height: 20px !important;
-            margin-top: 1px !important;
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
+            font-size: 11px !important;
+            padding: 0px 8px !important;
+            margin: 1px 0px !important;
+            background-color: #2b2b2b;
+            color: #e0e0e0 !important;
+            border: 1px solid #444;
+            display: flex; justify-content: center; align-items: center;
         }
 
-        /* METRİKLER */
-        div[data-testid="stMetricLabel"] {
-            font-size: 10px !important;
-            margin-bottom: 0px !important;
+        /* METRİK KARTLARI (BÜYÜK VERİLER İÇİN) */
+        .metric-card {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px 5px;
+            text-align: center;
+            margin: 0px 2px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
-        div[data-testid="stMetricValue"] {
-            font-size: 16px !important;
-            padding-bottom: 0px !important;
+        .metric-title {
+            color: #aaaaaa;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            font-weight: bold;
         }
-
-        /* GENEL YAZILAR (Listeyi sıkı tutar) */
-        p, .stMarkdown {
-            font-size: 12px !important;
-            margin-bottom: 0px !important;
-            margin-top: 0px !important;
+        .metric-value {
+            color: #ffffff;
+            font-size: 26px;  /* BÜYÜK FONT */
+            font-weight: 800;
+            margin: 0;
+            line-height: 1.2;
         }
         
-        hr {
-            margin: 2px 0px !important;
-            border-top: 1px solid #f0f0f0;
+        /* BİLGİ KUTULARI (Sürücü vb.) */
+        .info-box {
+            background-color: #262730;
+            border-left: 5px solid #00bc8c; /* Yeşil Çizgi */
+            padding: 10px;
+            margin-bottom: 10px;
+            color: white;
+            border-radius: 4px;
         }
+
+        /* ADRES KARTI */
+        .address-card {
+            background-color: #262730;
+            border-left: 5px solid #ff4b4b; /* Kırmızı Çizgi */
+            padding: 12px;
+            margin: 15px 0px;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+
+        /* AYIRICI */
+        hr { margin: 2px 0px !important; border-top: 1px solid #333; }
+        p { margin: 0px !important; font-size: 13px; color: #ccc; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -86,9 +113,9 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
 
-# --- AKILLI SIRALANMIŞ HAT LİSTESİ ---
+# --- HAT LİSTESİ (DÜZELTİLDİ: 1-60 -> B -> DİĞER) ---
 TUM_HATLAR = [
-    # 1. GRUP: 1-60 ARASI
+    # GRUP 1: 1-60 ARASI (Sayısal Küçükten Büyüğe)
     "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
     "2B", "2BT", "2C", "2E", "2G1", "2G2", "2GH", "2GK", "2GM", "2GY", "2K", "2KÇ", 
     "2M", "2MU", "2U", "3C", "3G", "3İ", "3MU", "3P", "4A", "4B", "4G", "4İ", 
@@ -102,7 +129,7 @@ TUM_HATLAR = [
     "35R", "35S", "35SE", "35U", "36", "36A", "37", "38", "38B", "38B2", "38D", 
     "38D2", "38G", "40H", "43A", "43D", "43H", "43HB", "60B", "60K",
 
-    # 2. GRUP: B SERİSİ
+    # GRUP 2: B SERİSİ
     "B1", "B1B", "B2", "B2A", "B2C", "B2D", "B2K", "B3", "B3K", "B4", "B5", "B6", 
     "B7", "B8", "B9", "B10", "B10K", "B12", "B13", "B15", "B15C", "B16A", "B16B", 
     "B17", "B17A", "B17B", "B20A", "B20B", "B20C", "B20D", "B20G", "B22", "B22K", 
@@ -111,7 +138,7 @@ TUM_HATLAR = [
     "B36", "B36A", "B36C", "B36M", "B36U", "B37", "B38", "B39", "B39K", "B40", 
     "B41B", "B41C", "B42A", "B43", "B44B", "B46", 
 
-    # 3. GRUP: DİĞERLERİ
+    # GRUP 3: DİĞERLERİ (61+ ve Harfler)
     "91", "91G", "92", "92B", "93", "93E", "94", "95", "95A", "95B", "96", "97", 
     "97A", "97B", "97F", "97G", "98", "98E", "99", "101", "102", "103", "103A", 
     "104", "105", "111A", "111B", "112", "112A", "113", "113A", "114", "114A", 
@@ -138,7 +165,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v70_design", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v71_dark", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -168,6 +195,7 @@ def plaka_duzenle(plaka_ham):
 
 def veri_cek(keyword):
     try:
+        # LİMİTSİZ ÇEKİM
         payload = {"keyword": keyword, "take": 500, "limit": 500}
         r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=5, verify=False)
         if r.status_code == 200:
@@ -204,7 +232,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v70")
+st.title("🚌 CNTOOTURK LIVE v71")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -247,7 +275,8 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         st.session_state.hat_ham_veri = temiz_veriler
         
         if temiz_veriler:
-            st.markdown(f'<p style="margin-bottom: 2px; font-weight:bold;">Toplam {len(temiz_veriler)} araç listeleniyor:</p>', unsafe_allow_html=True)
+            st.markdown(f'<p style="margin-bottom: 5px; color:#ff4b4b; font-weight:bold;">Toplam {len(temiz_veriler)} araç listeleniyor:</p>', unsafe_allow_html=True)
+            
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
             c1.markdown("**PLAKA**")
             c2.markdown("**HIZ**")
@@ -335,9 +364,21 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         if temiz_data:
             toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
-            st.metric("Toplam Yolcu", f"{toplam}", delta=f"{len(temiz_data)} Araç")
+            # Metrik Kartları
+            c_toplam, c_arac = st.columns(2)
+            c_toplam.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-title">Toplam Yolcu</div>
+                    <div class="metric-value">{toplam}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            c_arac.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-title">Aktif Araç</div>
+                    <div class="metric-value">{len(temiz_data)}</div>
+                </div>
+            """, unsafe_allow_html=True)
             
-            st.markdown(f'<p style="margin-bottom: 2px; font-weight:bold;">Listelenen Araç Sayısı: {len(temiz_data)}</p>', unsafe_allow_html=True)
             st.markdown("---")
             
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
@@ -350,7 +391,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
 
             for i, bus in enumerate(temiz_data):
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
-                
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 c3.write(f"{bus['gunlukYolcu']}")
@@ -413,58 +453,74 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 
     st.markdown("---")
     
-    # --- TASARIM FİX BURADA BAŞLIYOR (ÖZEL HTML KUTULAR) ---
+    # --- ÖZEL TASARIM: BAŞLIK VE SÜRÜCÜ ---
     
-    # 1. CANLI İZLEME BAŞLIĞI (YEŞİL)
+    # 1. Başlık Kutusu
     st.markdown(f"""
-        <div style="
-            background-color: #d4edda; 
-            color: #155724; 
-            padding: 10px; 
-            border-radius: 5px; 
-            border: 1px solid #c3e6cb;
-            text-align: center; 
-            margin-bottom: 5px;
-            font-size: 16px;
-            font-weight: bold;
-        ">
-            🔴 {arac['plaka']} Canlı İzleniyor
+        <div class='info-box'>
+            <h3 style='margin:0; text-align:center;'>🔴 {arac['plaka']}</h3>
+            <p style='text-align:center; color:#ccc; margin-top:5px;'>CANLI TAKİP MODU</p>
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. SÜRÜCÜ BİLGİSİ (MAVİ)
+    # 2. Sürücü Kutusu
     surucu = arac.get('surucu') or "Belirtilmemiş"
     st.markdown(f"""
-        <div style="
-            background-color: #d1ecf1; 
-            color: #0c5460; 
-            padding: 10px; 
-            border-radius: 5px; 
-            border: 1px solid #bee5eb;
-            text-align: center; 
-            margin-bottom: 15px;
-            font-size: 14px;
-            font-weight: bold;
-        ">
-            👮 Sürücü: {surucu}
+        <div style='background-color:#1e1e1e; padding:8px; border-radius:4px; text-align:center; border:1px solid #333; margin-bottom:15px;'>
+            <span style='color:#888; font-size:12px;'>👮 SÜRÜCÜ</span><br>
+            <span style='color:#fff; font-weight:bold; font-size:16px;'>{surucu}</span>
         </div>
     """, unsafe_allow_html=True)
-    
-    # -----------------------------------------------------
 
+    # --- ÖZEL TASARIM: BÜYÜK METRİKLER (4 SÜTUN) ---
     hat_no = arac.get('hatkodu') or "---"
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("🚌 HAT", hat_no)
-    c2.metric("🚀 Hız", f"{arac.get('hiz')} km/s")
-    c3.metric("🎫 Anlık", f"{arac.get('seferYolcu')}")
-    c4.metric("💰 Toplam", f"{arac.get('gunlukYolcu')}")
+    hiz = f"{arac.get('hiz')} km/s"
+    yolcu = f"{arac.get('seferYolcu')}"
+    toplam = f"{arac.get('gunlukYolcu')}"
 
+    c1, c2, c3, c4 = st.columns(4)
+    
+    c1.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">HAT</div>
+            <div class="metric-value" style="color:#ff4b4b;">{hat_no}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    c2.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">HIZ</div>
+            <div class="metric-value">{hiz}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    c3.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">ANLIK</div>
+            <div class="metric-value" style="color:#00bc8c;">{yolcu}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    c4.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">TOPLAM</div>
+            <div class="metric-value">{toplam}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # --- ÖZEL TASARIM: ADRES KARTI ---
     lat = float(arac['enlem'])
     lon = float(arac['boylam'])
-    
     adres = get_address(lat, lon)
-    st.warning(f"📍 {adres}")
+    
+    st.markdown(f"""
+        <div class="address-card">
+            <span style='font-size:20px; margin-right:10px;'>📍</span>
+            <span>{adres}</span>
+        </div>
+    """, unsafe_allow_html=True)
 
+    # HARİTA BUTONLARI
     col_g, col_y = st.columns(2)
     col_g.link_button("🗺️ Google Haritalar", google_maps_link(lat, lon), use_container_width=True)
     col_y.link_button("🧭 Yandex Navigasyon", yandex_maps_link(lat, lon), use_container_width=True)
