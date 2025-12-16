@@ -10,6 +10,7 @@ from datetime import datetime
 import pytz 
 import urllib3
 from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
 
 # SSL Hata Gizleme
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -25,13 +26,13 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
 
-# --- HAT LİSTESİ ---
+# --- HAT LİSTESİ (B1B ve 14L3 Eklendi) ---
 TUM_HATLAR = [
-    "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
+    "B1B", "14L3", "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
     "2B", "2BT", "2C", "2E", "2G1", "2G2", "2GH", "2GK", "2GM", "2GY", "2K", "2KÇ", 
     "2M", "2MU", "2U", "3C", "3G", "3İ", "3MU", "3P", "4A", "4B", "4G", "4İ", 
     "5A", "5B", "5E", "5G", "6A", "6E", "6F", "6F1", "6F2", "6FD", "6K1", "7A", 
-    "7B", "7C", "7S", "8L", "9D", "9M", "9PA", "14F", "14L", "14L2", "14L3", "14N", 
+    "7B", "7C", "7S", "8L", "9D", "9M", "9PA", "14F", "14L", "14L2", "14N", 
     "14U", "15", "15A", "15B", "15D", "15H", "16A", "16İ", "16S", "17A", "17B", 
     "17C", "17D", "17E", "17F", "17H", "17M", "17S", "17Y", "18", "18B", "18İ", 
     "18Y", "19A", "19B", "19C", "19D", "19E", "19İ", "20", "20A", "21", "21C", 
@@ -49,7 +50,7 @@ TUM_HATLAR = [
     "631", "632", "642", "675", "741M", "755B", "772", "801", "811", "811D", "812S", 
     "812T", "813C", "813D", "813H", "814", "815", "816", "817", "817TK", "818", 
     "818H", "820", "901", "903", "911A", "912", "913", "914", "914A", "991", "992", 
-    "B1", "B1B", "B2", "B2A", "B2C", "B2D", "B2K", "B3", "B3K", "B4", "B5", "B6", 
+    "B1", "B2", "B2A", "B2C", "B2D", "B2K", "B3", "B3K", "B4", "B5", "B6", 
     "B7", "B8", "B9", "B10", "B10K", "B12", "B13", "B15", "B15C", "B16A", "B16B", 
     "B17", "B17A", "B17B", "B20A", "B20B", "B20C", "B20D", "B20G", "B22", "B22K", 
     "B24", "B25", "B27", "B29", "B30", "B31", "B31A", "B32", "B32A", "B33", "B33A", 
@@ -70,7 +71,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v47", timeout=2)
+        geolocator = Nominatim(user_agent="cntooturk_v49", timeout=2)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             parts = loc.address.split(",")
@@ -98,6 +99,74 @@ def veri_cek(keyword):
 def google_maps_link(lat, lon):
     return f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
 
+# --- ANALİZ FONKSİYONU (YENİ MANTIK) ---
+def mesafe_analizi(hedef_arac, tum_liste):
+    """
+    Kural:
+    - Küçük Plaka -> ÖNDE
+    - Büyük Plaka -> ARKADA
+    - Liste Küçükten Büyüğe Sıralanır.
+    """
+    try:
+        # 1. Sadece M plakalar ve Sıralama
+        m_plakalar = []
+        for bus in tum_liste:
+            p_temiz = bus['plaka'].replace(" ","").upper()
+            if "M" in p_temiz:
+                match = re.search(r'(\d+)$', p_temiz)
+                if match:
+                    bus['sayisal_plaka'] = int(match.group(1))
+                    m_plakalar.append(bus)
+        
+        # Küçükten Büyüğe Sırala (10170, 10171, 10172...)
+        m_plakalar.sort(key=lambda x: x['sayisal_plaka'])
+        
+        # 2. Kendi yerini bul
+        hedef_p = hedef_arac['plaka'].replace(" ","").upper()
+        my_index = -1
+        for i, bus in enumerate(m_plakalar):
+            if bus['plaka'].replace(" ","").upper() == hedef_p:
+                my_index = i
+                break
+        
+        if my_index == -1: return None 
+        
+        # 3. ÖN ve ARKA Belirleme (Döngüsel)
+        # ÖN = Listede bir önceki (Küçük Plaka)
+        # Eğer index 0 (En küçük) ise -> Listenin sonu (En büyük) önüne geçer.
+        on_index = (my_index - 1) % len(m_plakalar)
+        
+        # ARKA = Listede bir sonraki (Büyük Plaka)
+        # Eğer index Son ise -> Listenin başı (En küçük) arkasına geçer.
+        arka_index = (my_index + 1) % len(m_plakalar)
+        
+        on_arac = m_plakalar[on_index]
+        arka_arac = m_plakalar[arka_index]
+        
+        # 4. Hesapla
+        def hesapla(ref_arac):
+            dist = geodesic(
+                (float(hedef_arac['enlem']), float(hedef_arac['boylam'])),
+                (float(ref_arac['enlem']), float(ref_arac['boylam']))
+            ).km
+            # Tahmini Süre (x1.4 Trafik Faktörü / 30 kmh Hız)
+            sure = (dist * 1.4) / 30 * 60 
+            return dist, sure
+
+        on_km, on_dk = hesapla(on_arac)
+        arka_km, arka_dk = hesapla(arka_arac)
+        
+        return {
+            "on_plaka": on_arac['plaka'],
+            "on_km": on_km,
+            "on_dk": on_dk,
+            "arka_plaka": arka_arac['plaka'],
+            "arka_km": arka_km,
+            "arka_dk": arka_dk
+        }
+    except Exception as e:
+        return None
+
 # --- SESSION STATE ---
 if 'secilen_plaka' not in st.session_state:
     st.session_state.secilen_plaka = None
@@ -105,9 +174,11 @@ if 'takip_modu' not in st.session_state:
     st.session_state.takip_modu = False
 if 'aktif_arama' not in st.session_state:
     st.session_state.aktif_arama = None
+if 'analiz_acik' not in st.session_state:
+    st.session_state.analiz_acik = False
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v47")
+st.title("🚌 CNTOOTURK LIVE v49")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -124,6 +195,7 @@ if not st.session_state.takip_modu:
         st.session_state.aktif_arama = giris_text.upper().strip()
         st.session_state.takip_modu = False 
         st.session_state.secilen_plaka = None
+        st.session_state.analiz_acik = False
 
 # --- LİSTELEME MODU ---
 if st.session_state.aktif_arama and not st.session_state.takip_modu:
@@ -141,6 +213,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         if veriler:
             plaka_listesi = [v["plaka"] for v in veriler]
             secim = st.selectbox("İzlenecek Aracı Seçin:", ["Seçiniz..."] + plaka_listesi)
+            
             if secim and secim != "Seçiniz...":
                 secilen = next((x for x in veriler if x["plaka"] == secim), None)
                 if secilen:
@@ -222,16 +295,20 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     if st.button("⬅️ Listeye Geri Dön"):
         st.session_state.takip_modu = False
         st.session_state.secilen_plaka = None
+        st.session_state.analiz_acik = False
         st.rerun()
 
     eski_veri = st.session_state.secilen_plaka
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or eski_veri.get('bulunan_hat') or st.session_state.aktif_arama
 
+    # VERİ TAZELEME (Analiz için hat verisi gerekli)
     taze_veri = None
+    hat_verisi_tam = [] 
+    
     if hedef_hat:
-        res = veri_cek(hedef_hat)
-        taze_veri = next((x for x in res if x['plaka'] == hedef_plaka), None)
+        hat_verisi_tam = veri_cek(hedef_hat)
+        taze_veri = next((x for x in hat_verisi_tam if x['plaka'] == hedef_plaka), None)
     
     if not taze_veri:
         res = veri_cek(plaka_duzenle(hedef_plaka))
@@ -243,26 +320,54 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         st.session_state.secilen_plaka = taze_veri
     else:
         arac = eski_veri
-        st.toast("⚠️ Veri güncellenemedi, eski konum.")
+        st.toast("⚠️ Veri güncellenemedi.")
 
     # --- GÖRSELLEŞTİRME ---
     st.markdown("---")
     st.success(f"🔴 **{arac['plaka']}** Canlı İzleniyor")
 
-    # SÜRÜCÜ BİLGİSİ (GENİŞ)
     surucu = arac.get('surucu') or "Belirtilmemiş"
     st.info(f"👮 **Sürücü:** {surucu}")
 
-    # YENİ TASARIM: 4'LÜ YAN YANA METRİK
-    # Hat No en başa alındı
     hat_no = arac.get('hatkodu') or "---"
     
     c1, c2, c3, c4 = st.columns(4)
-    
     c1.metric("🚌 HAT", hat_no)
     c2.metric("🚀 Hız", f"{arac.get('hiz')} km/s")
     c3.metric("🎫 Anlık", f"{arac.get('seferYolcu')}")
     c4.metric("💰 Toplam", f"{arac.get('gunlukYolcu')}")
+
+    # --- MESAFE ANALİZİ (M PLAKA) ---
+    if " M " in arac['plaka'].upper():
+        st.markdown("---")
+        # Onay Kutusu
+        analiz_onay = st.checkbox("⏱️ Mesafe Analizini Aç (Ön/Arka)", value=st.session_state.analiz_acik)
+        
+        if analiz_onay:
+            st.session_state.analiz_acik = True
+            if hat_verisi_tam:
+                sonuc = mesafe_analizi(arac, hat_verisi_tam)
+                if sonuc:
+                    col_on, col_arka = st.columns(2)
+                    
+                    with col_on:
+                        st.info(f"⬆️ **ÖNÜNDEKİ (Bir Önceki)**\n\n"
+                                f"🚌 **{sonuc['on_plaka']}**\n\n"
+                                f"📏 **{sonuc['on_km']:.2f} km**\n\n"
+                                f"⏳ **~{int(sonuc['on_dk'])} dk**")
+                    
+                    with col_arka:
+                        st.warning(f"⬇️ **ARKADAKİ (Bir Sonraki)**\n\n"
+                                   f"🚌 **{sonuc['arka_plaka']}**\n\n"
+                                   f"📏 **{sonuc['arka_km']:.2f} km**\n\n"
+                                   f"⏳ **~{int(sonuc['arka_dk'])} dk**")
+                else:
+                    st.caption("Bu hatta başka M plakalı araç bulunamadı.")
+            else:
+                st.caption("Hat verisi analiz için yetersiz.")
+        else:
+            st.session_state.analiz_acik = False
+    # -----------------------------------
 
     lat = float(arac['enlem'])
     lon = float(arac['boylam'])
