@@ -17,24 +17,16 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # --- AYARLAR ---
 st.set_page_config(page_title="Cntooturk Takip Sistemi", page_icon="🚌", layout="centered")
 
-# --- CSS TASARIM (Stabil & Kompakt & Koyu Mod) ---
+# --- CSS TASARIM ---
 st.markdown("""
     <style>
-        /* Ana Blok Ayarı */
-        .block-container {
-            padding-top: 0.5rem;
-            padding-bottom: 1rem;
-        }
-        [data-testid="column"] {
-            padding: 0px !important;
-            margin: 0px !important;
-        }
+        .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
+        [data-testid="column"] { padding: 0px !important; margin: 0px !important; }
         
-        /* BUTONLAR (TAM GENİŞLİK & İNCE) */
         .stButton button {
             height: 24px !important;
             min_height: 24px !important;
-            width: 100% !important;        /* Tam Genişlik */
+            width: 100% !important;
             padding: 0px !important;
             font-size: 11px !important;
             margin: 1px 0px !important;
@@ -45,7 +37,6 @@ st.markdown("""
         }
         .stButton button:hover { border-color: #ff4b4b; color: #ff4b4b; }
         
-        /* KONUM LİNK BUTONU */
         .stLinkButton a {
             height: 24px !important;
             min_height: 24px !important;
@@ -53,16 +44,13 @@ st.markdown("""
             font-size: 11px !important;
             padding: 0px !important;
             margin: 1px 0px !important;
-            display: flex; 
-            justify-content: center; 
-            align-items: center;
+            display: flex; justify-content: center; align-items: center;
             line-height: 22px !important;
             background-color: #2b2b2b;
             color: #e0e0e0 !important;
             border: 1px solid #444;
         }
 
-        /* METRİK KARTLARI (BÜYÜK VE OKUNAKLI - KOYU TEMA) */
         .metric-card {
             background-color: #1e1e1e;
             border: 1px solid #333;
@@ -81,13 +69,12 @@ st.markdown("""
         }
         .metric-value {
             color: #ffffff;
-            font-size: 24px; /* BÜYÜK PUNTO */
+            font-size: 24px;
             font-weight: 800;
             margin: 0;
             line-height: 1.2;
         }
 
-        /* BİLGİ KUTULARI (BAŞLIK & SÜRÜCÜ) */
         .info-box {
             background-color: #262730;
             border-left: 5px solid #00bc8c;
@@ -97,7 +84,6 @@ st.markdown("""
             border-radius: 4px;
         }
 
-        /* ADRES KARTI */
         .address-card {
             background-color: #262730;
             border-left: 5px solid #ff4b4b;
@@ -107,11 +93,9 @@ st.markdown("""
             color: #e0e0e0;
             font-size: 14px;
             font-weight: 500;
-            display: flex;
-            align-items: center;
+            display: flex; align-items: center;
         }
 
-        /* Tablo Başlıkları */
         .table-header {
             font-size: 11px;
             font-weight: bold;
@@ -134,7 +118,7 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
 
-# --- AKILLI SIRALANMIŞ HAT LİSTESİ (1-60 -> B -> Diğer) ---
+# --- HAT LİSTESİ ---
 TUM_HATLAR = [
     "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
     "2B", "2BT", "2C", "2E", "2G1", "2G2", "2GH", "2GK", "2GM", "2GY", "2K", "2KÇ", 
@@ -181,7 +165,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v76_final_refresh", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v77_stable", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -208,10 +192,16 @@ def plaka_duzenle(plaka_ham):
         return p
     except: return plaka_ham
 
-def veri_cek(keyword):
+# --- GÜNCELLENMİŞ SORGULAMA MOTORU ---
+def veri_cek(keyword, genis_sorgu=True):
     try:
-        # LİMİTSİZ ÇEKİM
-        payload = {"keyword": keyword, "take": 500, "limit": 500}
+        # EĞER GENİŞ SORGU İSE (LİSTE İÇİN) -> LİMİT YOK
+        if genis_sorgu:
+            payload = {"keyword": keyword, "take": 500, "limit": 500}
+        # EĞER TEKİL SORGU İSE (TAKİP İÇİN) -> STANDART PAYLOAD (HATA VERMEMESİ İÇİN)
+        else:
+            payload = {"keyword": keyword}
+            
         r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=5, verify=False)
         if r.status_code == 200:
             return r.json().get("result", [])
@@ -276,7 +266,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         veriler = []
         with st.spinner("Taranıyor..."):
             for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
-                res = veri_cek(k)
+                res = veri_cek(k, genis_sorgu=True)
                 if res: veriler.extend(res)
         
         # Deduplication
@@ -326,18 +316,18 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         with st.status("🔍 Araç aranıyor...", expanded=True) as status:
             bulunan = None
             
-            # 1. ADIM: Direkt Sorgu
+            # 1. ADIM: Direkt Sorgu (HASSAS MOD)
             status.write(f"📡 '{hedef}' aranıyor...")
-            res = veri_cek(hedef)
+            res = veri_cek(hedef, genis_sorgu=False)
             if res:
                 bulunan = res[0]
                 bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
             
-            # 2. ADIM: Hat Taraması (SIRALI LİSTE)
+            # 2. ADIM: Hat Taraması (GENİŞ MOD)
             if not bulunan:
-                status.write("🌍 Tüm hatlar taranıyor (Numaralı -> B -> Diğer)...")
+                status.write("🌍 Tüm hatlar taranıyor...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
-                    future_to_hat = {executor.submit(veri_cek, hat): hat for hat in TUM_HATLAR}
+                    future_to_hat = {executor.submit(veri_cek, hat, True): hat for hat in TUM_HATLAR}
                     for future in concurrent.futures.as_completed(future_to_hat):
                         data = future.result()
                         for bus in data:
@@ -352,7 +342,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             if not bulunan:
                 status.write("💤 Boş araçlara bakılıyor...")
                 for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
-                    res = veri_cek(k)
+                    res = veri_cek(k, genis_sorgu=True)
                     for bus in res:
                         if bus.get("plaka", "").replace(" ","") == hedef.replace(" ",""):
                             bulunan = bus
@@ -374,7 +364,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
     else:
         st.subheader(f"📊 Hat: {giris}")
         with st.spinner("Veriler yükleniyor..."):
-            data = veri_cek(giris)
+            data = veri_cek(giris, genis_sorgu=True)
             
             temiz_data = []
             goru_plaka = set()
@@ -390,7 +380,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
             kalibre_toplam = int(ham_toplam * 1.23)
             
-            # --- METRİKLER (BÜYÜK) ---
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
                 <div class="metric-card">
@@ -407,7 +396,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             
             st.markdown("---")
             
-            # --- TABLO BAŞLIKLARI ---
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.1, 1.1, 1.2, 1.8])
             c1.markdown("<span class='table-header'>PLAKA</span>", unsafe_allow_html=True)
             c2.markdown("<span class='table-header'>HIZ</span>", unsafe_allow_html=True)
@@ -467,11 +455,13 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 
     taze_veri = None
     if hedef_hat and hedef_hat != "ÖZEL":
-        hat_verisi = veri_cek(hedef_hat)
+        # HAT SORGUSU İÇİN GENİŞ MOD
+        hat_verisi = veri_cek(hedef_hat, genis_sorgu=True)
         taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
     
     if not taze_veri:
-        res = veri_cek(plaka_duzenle(hedef_plaka))
+        # PLAKA YEDEĞİ İÇİN HASSAS MOD (HATA VERMEMESİ İÇİN)
+        res = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
         if res: taze_veri = res[0]
 
     if taze_veri:
@@ -484,7 +474,6 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 
     st.markdown("---")
     
-    # 1. Başlık
     st.markdown(f"""
         <div class='info-box'>
             <h3 style='margin:0; text-align:center;'>🔴 {arac['plaka']}</h3>
@@ -492,7 +481,6 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. Sürücü
     surucu = arac.get('surucu') or "Belirtilmemiş"
     st.markdown(f"""
         <div style='background-color:#1e1e1e; padding:8px; border-radius:4px; text-align:center; border:1px solid #333; margin-bottom:15px;'>
@@ -501,26 +489,20 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         </div>
     """, unsafe_allow_html=True)
 
-    # --- METRİKLER (4 Sütun) ---
     hat_no = arac.get('hatkodu') or "---"
     hiz = f"{arac.get('hiz')} km/s"
     
-    # KALİBRASYONLU YOLCU VERİSİ
-    ham_yolcu_anlik = arac.get('seferYolcu', 0) or 0
-    # Anlık yolcu verisi genelde sistemden doğru gelir ama yine de %23 isteniyorsa burası da artırılabilir. 
-    # Ancak genelde toplam artırılır. İsteğe binaen sadece toplamı artırıyorum ama anlık istenirse buraya eklenebilir.
-    # Şimdilik sadece TOPLAM GÜNLÜK YOLCUYU artırıyorum.
-    
+    # YOLCU KALİBRASYONU (Canlı Takipte Sadece Toplam İçin)
+    ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
     kalibre_toplam = int(ham_toplam * 1.23)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
     c2.markdown(f"""<div class="metric-card"><div class="metric-title">HIZ</div><div class="metric-value">{hiz}</div></div>""", unsafe_allow_html=True)
-    c3.markdown(f"""<div class="metric-card"><div class="metric-title">ANLIK</div><div class="metric-value" style="color:#00bc8c;">{ham_yolcu_anlik}</div></div>""", unsafe_allow_html=True)
+    c3.markdown(f"""<div class="metric-card"><div class="metric-title">ANLIK</div><div class="metric-value" style="color:#00bc8c;">{ham_anlik}</div></div>""", unsafe_allow_html=True)
     c4.markdown(f"""<div class="metric-card"><div class="metric-title">TOPLAM</div><div class="metric-value">{kalibre_toplam}</div></div>""", unsafe_allow_html=True)
 
-    # --- ADRES KARTI ---
     lat = float(arac['enlem'])
     lon = float(arac['boylam'])
     adres = get_address(lat, lon)
@@ -532,7 +514,6 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         </div>
     """, unsafe_allow_html=True)
 
-    # HARİTA BUTONLARI
     col_g, col_y = st.columns(2)
     col_g.link_button("🗺️ Google Haritalar", google_maps_link(lat, lon), use_container_width=True)
     col_y.link_button("🧭 Yandex Navigasyon", yandex_maps_link(lat, lon), use_container_width=True)
@@ -546,8 +527,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     ).add_to(m)
     st_folium(m, width=700, height=350)
 
-# --- GLOBAL OTOMATİK YENİLEME (HER EKRAN İÇİN GEÇERLİ) ---
-# Eğer herhangi bir arama (Hat veya Araç) aktifse 20 saniyede bir sayfayı yeniler.
+# --- GLOBAL REFRESH ---
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
