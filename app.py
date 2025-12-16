@@ -70,25 +70,21 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v54_fix", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v55", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
-            # Adres bileşenlerini ham veriden çek (Daha detaylı)
             address = loc.raw.get('address', {})
-            road = address.get('road', '') # Cadde, Sokak, Bulvar
-            neighbourhood = address.get('neighbourhood', '') # Mahalle
-            suburb = address.get('suburb', '') # Semt/İlçe
+            road = address.get('road', '') 
+            neighbourhood = address.get('neighbourhood', '') 
+            suburb = address.get('suburb', '') 
             
-            # Mahalle yoksa Suburb kullan (Yedek)
             mahalle_kullan = neighbourhood if neighbourhood else suburb
             
             if road and mahalle_kullan:
                 return f"{road}, {mahalle_kullan}"
             elif road:
-                # Sadece yol varsa yanına ilçeyi koymayı dene
                 return f"{road}, {suburb}"
             else:
-                # Standart eski yöntem (Yedek)
                 parts = loc.address.split(",")
                 return f"{parts[0]}, {parts[1]}" if len(parts) > 1 else parts[0]
     except:
@@ -111,7 +107,6 @@ def veri_cek(keyword):
     except: return []
     return []
 
-# Harita Linkleri
 def google_maps_link(lat, lon):
     return f"https://www.google.com/maps?q={lat},{lon}"
 
@@ -141,7 +136,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v54")
+st.title("🚌 CNTOOTURK LIVE v55")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -185,8 +180,8 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         with st.status("🔍 Araç aranıyor...", expanded=True) as status:
             bulunan = None
             
-            # ADIM 1: Hızlı Sorgu
-            status.write(f"📡 '{hedef}' veritabanında sorgulanıyor...")
+            # ADIM 1: Direkt Sorgu
+            status.write(f"📡 '{hedef}' aranıyor...")
             res = veri_cek(hedef)
             if res:
                 bulunan = res[0]
@@ -207,9 +202,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                                 break
                         if bulunan: break
             
-            # ADIM 3: Boş Araçlar
+            # ADIM 3: Boş
             if not bulunan:
-                status.write("💤 Boş araçlara bakılıyor...")
+                status.write("💤 Servis dışı araçlara bakılıyor...")
                 for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
                     res = veri_cek(k)
                     for bus in res:
@@ -263,10 +258,26 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
 # --- 2. MOD: CANLI TAKİP ---
 if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
-    if st.button("⬅️ Listeye Geri Dön"):
-        st.session_state.takip_modu = False
-        st.session_state.secilen_plaka = None
-        st.rerun()
+    # GERİ DÖNÜŞ MANTIĞI (ÖNEMLİ DEĞİŞİKLİK BURADA)
+    arama_terimi = st.session_state.aktif_arama
+    
+    # Eğer Plaka Sorgusuysa (Sayı ile başlıyorsa ve uzunsa) -> ANA MENÜYE DÖN
+    is_plaka = len(arama_terimi) > 4 and arama_terimi[0].isdigit()
+    
+    if is_plaka:
+        if st.button("🏠 Ana Menüye Dön"):
+            st.session_state.takip_modu = False
+            st.session_state.secilen_plaka = None
+            st.session_state.aktif_arama = None # Aramayı temizle ki başa dönsün
+            st.session_state.hat_ham_veri = []
+            st.rerun()
+    else:
+        # Hat Sorgusuysa -> LİSTEYE DÖN
+        if st.button("⬅️ Listeye Geri Dön"):
+            st.session_state.takip_modu = False
+            st.session_state.secilen_plaka = None
+            # Arama terimini SİLMİYORUZ ki listeye dönsün
+            st.rerun()
 
     eski_veri = st.session_state.secilen_plaka
     hedef_plaka = eski_veri['plaka']
@@ -276,7 +287,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     taze_veri = None
     hat_verisi_tam = [] 
     
-    if hedef_hat:
+    if hedef_hat and hedef_hat != "ÖZEL":
         hat_verisi_tam = veri_cek(hedef_hat)
         taze_veri = next((x for x in hat_verisi_tam if x['plaka'] == hedef_plaka), None)
     
@@ -310,14 +321,12 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     lat = float(arac['enlem'])
     lon = float(arac['boylam'])
     
-    # ADRES (DÜZENLENDİ)
     adres = get_address(lat, lon)
     st.warning(f"📍 {adres}")
 
-    # HARİTA BUTONLARI
     col_g, col_y = st.columns(2)
-    col_g.link_button("🗺️ Google Haritalar'da Aç", google_maps_link(lat, lon), use_container_width=True)
-    col_y.link_button("🧭 Yandex Navigasyon'da Aç", yandex_maps_link(lat, lon), use_container_width=True)
+    col_g.link_button("🗺️ Google Haritalar", google_maps_link(lat, lon), use_container_width=True)
+    col_y.link_button("🧭 Yandex Navigasyon", yandex_maps_link(lat, lon), use_container_width=True)
 
     m = folium.Map(location=[lat, lon], zoom_start=15)
     folium.Marker(
