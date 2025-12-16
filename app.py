@@ -70,7 +70,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v45", timeout=2)
+        geolocator = Nominatim(user_agent="cntooturk_v46", timeout=2)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             parts = loc.address.split(",")
@@ -107,10 +107,10 @@ if 'aktif_arama' not in st.session_state:
     st.session_state.aktif_arama = None
 
 # --- ARAYÜZ BAŞLANGICI ---
-st.title("🚌 CNTOOTURK LIVE v45")
+st.title("🚌 CNTOOTURK LIVE v46")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
-# GİRİŞ KUTUSU (Sadece takipte değilsek)
+# GİRİŞ KUTUSU
 if not st.session_state.takip_modu:
     col_input, col_btn = st.columns([3, 1])
     with col_input:
@@ -189,7 +189,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             toplam = sum(b.get('gunlukYolcu', 0) for b in data)
             st.metric("Toplam Yolcu", f"{toplam}", delta=f"{len(data)} Araç")
             
-            # Tablo
             tablo_data = []
             for b in data:
                 maps_url = google_maps_link(b['enlem'], b['boylam'])
@@ -248,15 +247,17 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         arac = eski_veri
         st.toast("⚠️ Bağlantı zayıf, eski konum.")
 
-    # --- GÖRSELLEŞTİRME (DÜZENLENDİ) ---
+    # --- GÖRSELLEŞTİRME ---
     st.markdown("---")
     st.success(f"🔴 **{arac['plaka']}** Canlı İzleniyor")
+
+    # YENİ ÖZELLİK: HAT BİLGİSİ
+    hat_no = arac.get('hatkodu') or "Bilinmiyor"
+    st.warning(f"🚌 **ÇALIŞTIĞI HAT:** {hat_no}")
     
-    # SÜRÜCÜ BİLGİSİ İÇİN TAM GENİŞLİKTE KUTU (FIX BURADA)
     surucu = arac.get('surucu') or "Belirtilmemiş"
     st.info(f"👮 **Sürücü:** {surucu}")
     
-    # METRİKLER (3 Sütun)
     c1, c2, c3 = st.columns(3)
     c1.metric("🚀 Hız", f"{arac.get('hiz')} km/s")
     c2.metric("🎫 Anlık Yolcu", f"{arac.get('seferYolcu')}")
@@ -266,7 +267,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     lon = float(arac['boylam'])
     
     adres = get_address(lat, lon)
-    st.warning(f"📍 {adres}")
+    st.info(f"📍 {adres}")
 
     m = folium.Map(location=[lat, lon], zoom_start=15)
     folium.Marker(
@@ -277,6 +278,5 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     ).add_to(m)
     st_folium(m, width=700, height=350)
 
-    # 20 Saniye sonra sayfayı yenile
     time.sleep(20)
     st.rerun()
