@@ -14,7 +14,7 @@ from geopy.geocoders import Nominatim
 # SSL Hata Gizleme
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# --- AYARLAR VE CSS ---
+# --- AYARLAR VE ULTRA KOMPAKT CSS ---
 st.set_page_config(page_title="CNTOOTURK Live", page_icon="🚌", layout="centered")
 
 st.markdown("""
@@ -27,7 +27,6 @@ st.markdown("""
             padding-bottom: 0px !important;
             font-size: 12px !important;
             margin-top: 2px !important;
-            width: 100%;
         }
         hr { margin: 0px 0px !important; border-top: 1px solid #eee; }
         p, .stMarkdown {
@@ -49,8 +48,9 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
 
-# --- HAT LİSTESİ ---
+# --- AKILLI SIRALANMIŞ HAT LİSTESİ ---
 TUM_HATLAR = [
+    # 1. GRUP: 1-60 ARASI
     "1A", "1C", "1D", "1GY", "1H", "1K", "1M", "1MB", "1SY", "1T", "1TG", "1TK", 
     "2B", "2BT", "2C", "2E", "2G1", "2G2", "2GH", "2GK", "2GM", "2GY", "2K", "2KÇ", 
     "2M", "2MU", "2U", "3C", "3G", "3İ", "3MU", "3P", "4A", "4B", "4G", "4İ", 
@@ -63,6 +63,8 @@ TUM_HATLAR = [
     "28", "28A", "29A", "30", "31A", "35B", "35C", "35E1", "35E2", "35G", "35H", 
     "35R", "35S", "35SE", "35U", "36", "36A", "37", "38", "38B", "38B2", "38D", 
     "38D2", "38G", "40H", "43A", "43D", "43H", "43HB", "60B", "60K",
+
+    # 2. GRUP: B SERİSİ
     "B1", "B1B", "B2", "B2A", "B2C", "B2D", "B2K", "B3", "B3K", "B4", "B5", "B6", 
     "B7", "B8", "B9", "B10", "B10K", "B12", "B13", "B15", "B15C", "B16A", "B16B", 
     "B17", "B17A", "B17B", "B20A", "B20B", "B20C", "B20D", "B20G", "B22", "B22K", 
@@ -70,6 +72,8 @@ TUM_HATLAR = [
     "B33G", "B33H", "B33K", "B33M", "B34", "B34U", "B35", "B35K1", "B35K2", "B35M", 
     "B36", "B36A", "B36C", "B36M", "B36U", "B37", "B38", "B39", "B39K", "B40", 
     "B41B", "B41C", "B42A", "B43", "B44B", "B46", 
+
+    # 3. GRUP: DİĞERLERİ
     "91", "91G", "92", "92B", "93", "93E", "94", "95", "95A", "95B", "96", "97", 
     "97A", "97B", "97F", "97G", "98", "98E", "99", "101", "102", "103", "103A", 
     "104", "105", "111A", "111B", "112", "112A", "113", "113A", "114", "114A", 
@@ -96,7 +100,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v66_fixed", timeout=3)
+        geolocator = Nominatim(user_agent="cntooturk_v64_limitless", timeout=3)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -126,8 +130,8 @@ def plaka_duzenle(plaka_ham):
 
 def veri_cek(keyword):
     try:
-        # FİX: ORİJİNAL PAYLOAD'A DÖNÜLDÜ (LİMİT YOK)
-        payload = {"keyword": keyword}
+        # FİX: LIMIT/TAKE PARAMETRESİ EKLENDİ (Tüm araçları getirmek için)
+        payload = {"keyword": keyword, "take": 500, "limit": 500}
         r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=5, verify=False)
         if r.status_code == 200:
             return r.json().get("result", [])
@@ -163,7 +167,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 # --- ARAYÜZ ---
-st.title("🚌 CNTOOTURK LIVE v66")
+st.title("🚌 CNTOOTURK LIVE v64")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn")
 
 # GİRİŞ KUTUSU
@@ -206,7 +210,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         st.session_state.hat_ham_veri = temiz_veriler
         
         if temiz_veriler:
-            st.write(f"**Araç Sayısı: {len(temiz_veriler)}**")
+            st.write(f"**Toplam {len(temiz_veriler)} araç listeleniyor:**")
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
             c1.markdown("**PLAKA**")
             c2.markdown("**HIZ**")
@@ -236,7 +240,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         hedef = plaka_duzenle(giris)
         with st.status("🔍 Araç aranıyor...", expanded=True) as status:
             bulunan = None
-            status.write(f"📡 '{hedef}' aranıyor...")
+            status.write(f"📡 '{hedef}' veritabanında sorgulanıyor...")
             res = veri_cek(hedef)
             if res:
                 bulunan = res[0]
@@ -268,7 +272,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                     if bulunan: break
 
             if bulunan:
-                status.update(label="✅ Bulundu!", state="complete", expanded=False)
+                status.update(label="✅ Bulundu! Yönlendiriliyor...", state="complete", expanded=False)
                 st.session_state.secilen_plaka = bulunan
                 st.session_state.takip_modu = True
                 time.sleep(1)
@@ -281,6 +285,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
     else:
         st.subheader(f"📊 Hat: {giris}")
         with st.spinner("Veriler yükleniyor..."):
+            # LİMİTİ KALDIRILMIŞ ŞEKİLDE ÇEKİYORUZ (Max 500)
             data = veri_cek(giris)
             
             temiz_data = []
@@ -293,37 +298,41 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             st.session_state.hat_ham_veri = temiz_data
         
         if temiz_data:
+            # DOĞRU YOLCU TOPLAMI (Tekilleştirilmiş veriden)
             toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
             st.metric("Toplam Yolcu", f"{toplam}", delta=f"{len(temiz_data)} Araç")
+            st.write(f"**Listelenen Araç Sayısı: {len(temiz_data)}**")
             st.markdown("---")
             
             # --- BAŞLIKLAR ---
-            c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
-            c1.markdown("**PLAKA**")
-            c2.markdown("**HIZ**")
-            c3.markdown("**YOLCU**")
-            c4.markdown("**KONUM**")
-            c5.markdown("**İZLE**")
+            cols = st.columns([2.2, 1.2, 1.2, 1, 1.5])
+            cols[0].markdown("**PLAKA**")
+            cols[1].markdown("**HIZ**")
+            cols[2].markdown("**YOLCU**")
+            cols[3].markdown("**KONUM**")
+            cols[4].markdown("**İZLE**")
             st.divider()
 
-            # LİSTE
+            # LİSTE (SINIR YOK, DÖNGÜ TÜMÜNÜ YAZAR)
             for i, bus in enumerate(temiz_data):
-                c1, c2, c3, c4, c5 = st.columns([2.2, 1.2, 1.2, 1, 1.5])
+                cols = st.columns([2.2, 1.2, 1.2, 1, 1.5])
                 
-                c1.write(f"**{bus['plaka']}**")
-                c2.write(f"{bus['hiz']}")
-                c3.write(f"{bus['gunlukYolcu']}")
+                cols[0].write(f"**{bus['plaka']}**")
+                cols[1].write(f"{bus['hiz']}")
+                cols[2].write(f"{bus['gunlukYolcu']}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
-                c4.link_button("📍", maps)
+                cols[3].link_button("📍", maps)
                 
-                if c5.button("▶️", key=f"btn_{bus['plaka']}_{i}", type="primary"):
+                if cols[4].button("▶️", key=f"btn_{bus['plaka']}_{i}", type="primary"):
                     bus['hatkodu'] = giris
                     st.session_state.secilen_plaka = bus
                     st.session_state.takip_modu = True
                     st.rerun()
+                
                 st.divider()
 
+            # Alternatif Seçim
             plaka_listesi = [b['plaka'] for b in temiz_data]
             st.selectbox("Veya listeden seç:", ["Seçiniz..."] + plaka_listesi, key="selectbox_secimi", on_change=arac_secildi_callback)
 
@@ -355,6 +364,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 
     taze_veri = None
     if hedef_hat and hedef_hat != "ÖZEL":
+        # Canlı takipte de limiti kaldırıyoruz ki araç kaybolmasın
         hat_verisi = veri_cek(hedef_hat)
         taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
     
