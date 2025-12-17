@@ -325,7 +325,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             
             # 2. GENİŞ ARAMA
             if not bulunan:
-                status.write("🌍 Tüm hatlar taranıyor...")
+                status.write("🌍 Araç hatlarda aranıyor...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
                     future_to_hat = {executor.submit(veri_cek, hat, True): hat for hat in TUM_HATLAR}
                     for future in concurrent.futures.as_completed(future_to_hat):
@@ -339,7 +339,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                         if bulunan: break
             
             if not bulunan:
-                status.write("💤 Boş araçlara bakılıyor...")
+                status.write("Hat Seçilmemiş Araçlar Aranıyor")
                 for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
                     res = veri_cek(k, genis_sorgu=True)
                     for bus in res:
@@ -350,14 +350,14 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                     if bulunan: break
 
             if bulunan:
-                status.update(label="✅ Bulundu!", state="complete", expanded=False)
+                status.update(label="✅ Bulundu!, veriler getiriliyor.", state="complete", expanded=False)
                 st.session_state.secilen_plaka = bulunan
                 st.session_state.takip_modu = True
                 time.sleep(1)
                 st.rerun()
             else:
-                status.update(label="❌ Bulunamadı", state="error", expanded=True)
-                st.error(f"{hedef} bulunamadı.")
+                status.update(label="❌ Bulunamadı.", state="error", expanded=True)
+                st.error(f"{hedef} bulunamadı. Araç cihazı uykuda veya şartel kapatılmış.")
 
     # HAT SORGUSU
     else:
@@ -530,3 +530,4 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
+
