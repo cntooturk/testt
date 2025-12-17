@@ -163,24 +163,20 @@ def get_turkey_time():
     tz = pytz.timezone('Europe/Istanbul')
     return datetime.now(tz).strftime('%H:%M:%S')
 
-# --- GÜÇLENDİRİLMİŞ ADRES FONKSİYONU ---
 def get_address(lat, lon):
     try:
-        # Timeout 10 sn'ye çıkarıldı, benzersiz agent eklendi
         geolocator = Nominatim(user_agent="cntooturk_v79_pro_geo", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
             road = address.get('road', '') 
             
-            # Mahalle için alternatifler (Sırayla bakar)
             mahalle = ""
             for key in ['neighbourhood', 'quarter', 'suburb', 'residential', 'village']:
                 if address.get(key):
                     mahalle = address.get(key)
                     break
             
-            # Eğer mahalle bulunamadıysa İLÇE kullan (Yedek)
             if not mahalle:
                 mahalle = address.get('town') or address.get('city_district') or address.get('district') or ""
 
@@ -189,7 +185,7 @@ def get_address(lat, lon):
             elif mahalle: return mahalle
             return loc.address.split(",")[0]
     except:
-        return "Konum Bilgisi Alınamadı" # Takılı kalmaması için mesaj
+        return "Konum Bilgisi Alınamadı"
     return "Adres aranıyor..."
 
 def plaka_duzenle(plaka_ham):
@@ -299,9 +295,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # Yolcu kalibrasyon
+                # Yolcu kalibrasyon %15
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.23)
+                k_yolcu = int(h_yolcu * 1.15)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -320,7 +316,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         with st.status("🔍 Araç aranıyor...", expanded=True) as status:
             bulunan = None
             
-            # 1. HASSAS ARAMA (LIMITSIZ)
+            # 1. HASSAS ARAMA
             status.write(f"📡 '{hedef}' aranıyor...")
             res = veri_cek(hedef, genis_sorgu=False)
             if res:
@@ -380,7 +376,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         if temiz_data:
             ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
-            kalibre_toplam = int(ham_toplam * 1.23)
+            kalibre_toplam = int(ham_toplam * 1.15)
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -412,7 +408,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c2.write(f"{bus['hiz']}")
                 
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.23)
+                k_yolcu = int(h_yolcu * 1.15)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -454,9 +450,9 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or st.session_state.aktif_arama
 
+    # VERİ GÜNCELLEME (ÖNCE PLAKA, SONRA HAT)
     taze_veri = None
     
-    # 1. HASSAS SORGULAMA (En güvenlisi)
     res_plaka = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
     if res_plaka:
         for r in res_plaka:
@@ -464,7 +460,6 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
                 taze_veri = r
                 break
     
-    # 2. HATTA ARAMA (Yedek plan)
     if not taze_veri and hedef_hat and hedef_hat != "ÖZEL":
         hat_verisi = veri_cek(hedef_hat, genis_sorgu=True)
         taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
@@ -499,7 +494,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.23)
+    kalibre_toplam = int(ham_toplam * 1.15) # %15 Kalibrasyon
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
