@@ -297,7 +297,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 
                 # Yolcu kalibrasyon %21.5
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.215)
+                k_yolcu = int(h_yolcu * 1.22)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -530,4 +530,5 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
+
 
