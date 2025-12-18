@@ -165,12 +165,11 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v81_percent21_5", timeout=10)
+        geolocator = Nominatim(user_agent="cntooturk_v82_final", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
             road = address.get('road', '') 
-            
             mahalle = ""
             for key in ['neighbourhood', 'quarter', 'suburb', 'residential', 'village']:
                 if address.get(key):
@@ -252,7 +251,9 @@ if not st.session_state.takip_modu:
         btn_baslat = st.button("SORGULA", type="primary")
 
     if btn_baslat and giris_text:
-        st.session_state.aktif_arama = giris_text.upper().strip()
+        # FİX 1: TÜRKÇE KARAKTER DÜZELTME (19i -> 19İ)
+        giris_temiz = giris_text.replace("i", "İ").replace("ı", "I").upper().strip()
+        st.session_state.aktif_arama = giris_temiz
         st.session_state.takip_modu = False 
         st.session_state.secilen_plaka = None
         st.session_state.hat_ham_veri = []
@@ -297,7 +298,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 
                 # Yolcu kalibrasyon %21.5
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.22)
+                k_yolcu = int(h_yolcu * 1.215)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -316,16 +317,14 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         with st.status("🔍 Araç aranıyor...", expanded=True) as status:
             bulunan = None
             
-            # 1. HASSAS ARAMA
             status.write(f"📡 '{hedef}' aranıyor...")
             res = veri_cek(hedef, genis_sorgu=False)
             if res:
                 bulunan = res[0]
                 bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
             
-            # 2. GENİŞ ARAMA
             if not bulunan:
-                status.write("🌍 Araç hatlarda aranıyor...")
+                status.write("🌍 Tüm hatlar taranıyor...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
                     future_to_hat = {executor.submit(veri_cek, hat, True): hat for hat in TUM_HATLAR}
                     for future in concurrent.futures.as_completed(future_to_hat):
@@ -339,7 +338,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                         if bulunan: break
             
             if not bulunan:
-                status.write("Hat Seçilmemiş Araçlar Aranıyor")
+                status.write("💤 Boş araçlara bakılıyor...")
                 for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
                     res = veri_cek(k, genis_sorgu=True)
                     for bus in res:
@@ -350,14 +349,15 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                     if bulunan: break
 
             if bulunan:
-                status.update(label="✅ Bulundu!, veriler getiriliyor.", state="complete", expanded=False)
+                status.update(label="✅ Bulundu!", state="complete", expanded=False)
                 st.session_state.secilen_plaka = bulunan
                 st.session_state.takip_modu = True
                 time.sleep(1)
                 st.rerun()
             else:
-                status.update(label="❌ Bulunamadı.", state="error", expanded=True)
-                st.error(f"{hedef} bulunamadı. Araç cihazı uykuda veya şartel kapatılmış.")
+                status.update(label="❌ Bulunamadı", state="error", expanded=True)
+                # FİX 3: ÖZEL HATA MESAJI
+                st.error(f"❌ {hedef} bulunamadı. Araç cihazı uykuda veya şartel kapatılmış olabilir.")
 
     # HAT SORGUSU
     else:
@@ -376,7 +376,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         if temiz_data:
             ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
-            kalibre_toplam = int(ham_toplam * 1.22)
+            kalibre_toplam = int(ham_toplam * 1.215)
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -392,6 +392,8 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 </div>
             """, unsafe_allow_html=True)
             
+            # FİX 2: UYARI NOTU
+            st.caption("ℹ️ Not: Veriler sistemsel olarak gecikmeli gelmektedir.")
             st.markdown("---")
             
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.1, 1.1, 1.2, 1.8])
@@ -408,7 +410,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c2.write(f"{bus['hiz']}")
                 
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.22)
+                k_yolcu = int(h_yolcu * 1.215)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -450,19 +452,14 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or st.session_state.aktif_arama
 
-    # VERİ GÜNCELLEME (ÖNCE PLAKA, SONRA HAT)
     taze_veri = None
-    
-    res_plaka = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
-    if res_plaka:
-        for r in res_plaka:
-            if r['plaka'] == hedef_plaka:
-                taze_veri = r
-                break
-    
-    if not taze_veri and hedef_hat and hedef_hat != "ÖZEL":
+    if hedef_hat and hedef_hat != "ÖZEL":
         hat_verisi = veri_cek(hedef_hat, genis_sorgu=True)
         taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
+    
+    if not taze_veri:
+        res = veri_cek(plaka_duzenle(hedef_plaka))
+        if res: taze_veri = res[0]
 
     if taze_veri:
         taze_veri['hatkodu'] = taze_veri.get('hatkodu') or hedef_hat
@@ -494,7 +491,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.22) # %21.5 Kalibrasyon
+    kalibre_toplam = int(ham_toplam * 1.215)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
@@ -512,6 +509,9 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
             <span>{adres}</span>
         </div>
     """, unsafe_allow_html=True)
+    
+    # FİX 2: CANLI TAKİPTE DE UYARI NOTU
+    st.caption("ℹ️ Not: Veriler sistemsel olarak gecikmeli gelmektedir.")
 
     col_g, col_y = st.columns(2)
     col_g.link_button("🗺️ Google Haritalar", google_maps_link(lat, lon), use_container_width=True)
@@ -530,6 +530,3 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
-
-
-
