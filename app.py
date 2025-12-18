@@ -95,6 +95,19 @@ st.markdown("""
             font-weight: 500;
             display: flex; align-items: center;
         }
+        
+        /* DETAYLI NOT KUTUSU */
+        .note-card {
+            background-color: #332b00;
+            border: 1px solid #665700;
+            color: #ffda6a;
+            padding: 10px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
 
         .table-header {
             font-size: 11px;
@@ -165,7 +178,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v82_final", timeout=10)
+        geolocator = Nominatim(user_agent="cntooturk_v83_pro_fix", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -175,10 +188,8 @@ def get_address(lat, lon):
                 if address.get(key):
                     mahalle = address.get(key)
                     break
-            
             if not mahalle:
                 mahalle = address.get('town') or address.get('city_district') or address.get('district') or ""
-
             if road and mahalle: return f"{road}, {mahalle}"
             elif road: return road
             elif mahalle: return mahalle
@@ -251,7 +262,7 @@ if not st.session_state.takip_modu:
         btn_baslat = st.button("SORGULA", type="primary")
 
     if btn_baslat and giris_text:
-        # FİX 1: TÜRKÇE KARAKTER DÜZELTME (19i -> 19İ)
+        # FİX: Türkçe Karakter (i -> İ)
         giris_temiz = giris_text.replace("i", "İ").replace("ı", "I").upper().strip()
         st.session_state.aktif_arama = giris_temiz
         st.session_state.takip_modu = False 
@@ -296,7 +307,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # Yolcu kalibrasyon %21.5
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
                 k_yolcu = int(h_yolcu * 1.215)
                 c3.write(f"{k_yolcu}")
@@ -317,12 +327,14 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         with st.status("🔍 Araç aranıyor...", expanded=True) as status:
             bulunan = None
             
+            # 1. HASSAS ARAMA
             status.write(f"📡 '{hedef}' aranıyor...")
             res = veri_cek(hedef, genis_sorgu=False)
             if res:
                 bulunan = res[0]
                 bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
             
+            # 2. GENİŞ ARAMA
             if not bulunan:
                 status.write("🌍 Tüm hatlar taranıyor...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
@@ -356,7 +368,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 st.rerun()
             else:
                 status.update(label="❌ Bulunamadı", state="error", expanded=True)
-                # FİX 3: ÖZEL HATA MESAJI
+                # FİX: DETAYLI HATA MESAJI
                 st.error(f"❌ {hedef} bulunamadı. Araç cihazı uykuda veya şartel kapatılmış olabilir.")
 
     # HAT SORGUSU
@@ -392,9 +404,14 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 </div>
             """, unsafe_allow_html=True)
             
-            # FİX 2: UYARI NOTU
-            st.caption("ℹ️ Not: Veriler sistemsel olarak gecikmeli gelmektedir.")
-            st.markdown("---")
+            # FİX: DETAYLI NOT
+            st.markdown("""
+                <div class="note-card">
+                    ℹ️ <b>BİLGİLENDİRME:</b><br>
+                    Yolcu verileri merkezi sistemden kaynaklı olarak gecikmeli yansımaktadır. 
+                    Anlık verilerde farklılık olabilir.
+                </div>
+            """, unsafe_allow_html=True)
             
             c1, c2, c3, c4, c5 = st.columns([2.2, 1.1, 1.1, 1.2, 1.8])
             c1.markdown("<span class='table-header'>PLAKA</span>", unsafe_allow_html=True)
@@ -452,14 +469,22 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or st.session_state.aktif_arama
 
+    # FİX: GÜNCELLEME MOTORU (ÇAPRAZ KONTROL)
     taze_veri = None
+    
+    # 1. DENEME: HATTIN İÇİNDE ARA (Daha güvenli, limitsiz)
     if hedef_hat and hedef_hat != "ÖZEL":
         hat_verisi = veri_cek(hedef_hat, genis_sorgu=True)
         taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
     
+    # 2. DENEME: BULAMAZSAN PLAKA SORGULA
     if not taze_veri:
-        res = veri_cek(plaka_duzenle(hedef_plaka))
-        if res: taze_veri = res[0]
+        res_plaka = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
+        if res_plaka:
+            for r in res_plaka:
+                if r['plaka'] == hedef_plaka:
+                    taze_veri = r
+                    break
 
     if taze_veri:
         taze_veri['hatkodu'] = taze_veri.get('hatkodu') or hedef_hat
@@ -467,7 +492,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         st.session_state.secilen_plaka = taze_veri
     else:
         arac = eski_veri
-        st.toast("⚠️ Veri güncellenemedi.")
+        st.toast("⚠️ Bağlantı bekleniyor...") # Hata yerine uyarı
 
     st.markdown("---")
     
@@ -510,8 +535,14 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         </div>
     """, unsafe_allow_html=True)
     
-    # FİX 2: CANLI TAKİPTE DE UYARI NOTU
-    st.caption("ℹ️ Not: Veriler sistemsel olarak gecikmeli gelmektedir.")
+    # FİX: DETAYLI NOT (CANLI TAKİP)
+    st.markdown("""
+        <div class="note-card">
+            ℹ️ <b>BİLGİLENDİRME:</b><br>
+            Yolcu verileri merkezi sistemden kaynaklı olarak gecikmeli yansımaktadır. 
+            Anlık verilerde farklılık olabilir.
+        </div>
+    """, unsafe_allow_html=True)
 
     col_g, col_y = st.columns(2)
     col_g.link_button("🗺️ Google Haritalar", google_maps_link(lat, lon), use_container_width=True)
