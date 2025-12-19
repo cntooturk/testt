@@ -96,17 +96,17 @@ st.markdown("""
             display: flex; align-items: center;
         }
         
-        /* DETAYLI NOT KUTUSU */
+        /* DETAYLI NOT KUTUSU (GÜNCELLENDİ) */
         .note-card {
-            background-color: #332b00;
-            border: 1px solid #665700;
-            color: #ffda6a;
-            padding: 10px;
-            margin-top: 15px;
-            margin-bottom: 15px;
-            border-radius: 6px;
+            background-color: #3e2a00;
+            border-left: 5px solid #ffc107;
+            color: #e0e0e0;
+            padding: 12px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            border-radius: 4px;
             font-size: 12px;
-            line-height: 1.4;
+            line-height: 1.5;
         }
 
         .table-header {
@@ -178,18 +178,21 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v83_pro_fix", timeout=10)
+        geolocator = Nominatim(user_agent="cntooturk_v84_retry_fix", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
             road = address.get('road', '') 
+            
             mahalle = ""
             for key in ['neighbourhood', 'quarter', 'suburb', 'residential', 'village']:
                 if address.get(key):
                     mahalle = address.get(key)
                     break
+            
             if not mahalle:
                 mahalle = address.get('town') or address.get('city_district') or address.get('district') or ""
+
             if road and mahalle: return f"{road}, {mahalle}"
             elif road: return road
             elif mahalle: return mahalle
@@ -206,18 +209,27 @@ def plaka_duzenle(plaka_ham):
         return p
     except: return plaka_ham
 
+# --- GÜÇLENDİRİLMİŞ VERİ ÇEKME (RETRY LOGIC) ---
 def veri_cek(keyword, genis_sorgu=True):
     try:
         if genis_sorgu:
             payload = {"keyword": keyword, "take": 500, "limit": 500}
         else:
             payload = {"keyword": keyword}
-            
-        r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=5, verify=False)
-        if r.status_code == 200:
-            return r.json().get("result", [])
+        
+        # 2 KEZ DENE (Hata Alırsan Tekrarla)
+        for _ in range(2):
+            try:
+                r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=8, verify=False)
+                if r.status_code == 200:
+                    data = r.json().get("result", [])
+                    if data: return data # Veri varsa hemen dön
+            except:
+                time.sleep(1) # Hata varsa 1 sn bekle tekrar dene
+                continue
+                
+        return []
     except: return []
-    return []
 
 def google_maps_link(lat, lon):
     return f"https://www.google.com/maps?q={lat},{lon}"
@@ -262,7 +274,6 @@ if not st.session_state.takip_modu:
         btn_baslat = st.button("SORGULA", type="primary")
 
     if btn_baslat and giris_text:
-        # FİX: Türkçe Karakter (i -> İ)
         giris_temiz = giris_text.replace("i", "İ").replace("ı", "I").upper().strip()
         st.session_state.aktif_arama = giris_temiz
         st.session_state.takip_modu = False 
@@ -307,8 +318,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
+                # Yolcu kalibrasyon %16 + 25
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.215)
+                k_yolcu = int(h_yolcu * 1.16) + 25
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -368,7 +380,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 st.rerun()
             else:
                 status.update(label="❌ Bulunamadı", state="error", expanded=True)
-                # FİX: DETAYLI HATA MESAJI
                 st.error(f"❌ {hedef} bulunamadı. Araç cihazı uykuda veya şartel kapatılmış olabilir.")
 
     # HAT SORGUSU
@@ -388,7 +399,8 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         if temiz_data:
             ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
-            kalibre_toplam = int(ham_toplam * 1.215)
+            # Kalibrasyon %16 + 25 (Araç Başı)
+            kalibre_toplam = int(ham_toplam * 1.16) + (len(temiz_data) * 25)
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -404,12 +416,11 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 </div>
             """, unsafe_allow_html=True)
             
-            # FİX: DETAYLI NOT
             st.markdown("""
                 <div class="note-card">
-                    ℹ️ <b>BİLGİLENDİRME:</b><br>
-                    Yolcu verileri merkezi sistemden kaynaklı olarak gecikmeli yansımaktadır. 
-                    Anlık verilerde farklılık olabilir.
+                    ⚠️ <b>SİSTEM NOTU:</b><br>
+                    Yolcu verileri ve konum bilgileri merkezi sistemden (BURULAŞ/ABYS) kaynaklı olarak 
+                    2-3 dakika gecikmeli yansıyabilmektedir. Veriler anlık doluluk oranını tam yansıtmayabilir.
                 </div>
             """, unsafe_allow_html=True)
             
@@ -426,8 +437,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
+                # Yolcu kalibrasyon %16 + 25
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.215)
+                k_yolcu = int(h_yolcu * 1.16) + 25
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -469,22 +481,19 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or st.session_state.aktif_arama
 
-    # FİX: GÜNCELLEME MOTORU (ÇAPRAZ KONTROL)
+    # GÜÇLENDİRİLMİŞ GÜNCELLEME (RETRY + ÇAPRAZ KONTROL)
     taze_veri = None
     
-    # 1. DENEME: HATTIN İÇİNDE ARA (Daha güvenli, limitsiz)
-    if hedef_hat and hedef_hat != "ÖZEL":
+    res_plaka = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
+    if res_plaka:
+        for r in res_plaka:
+            if r['plaka'] == hedef_plaka:
+                taze_veri = r
+                break
+    
+    if not taze_veri and hedef_hat and hedef_hat != "ÖZEL":
         hat_verisi = veri_cek(hedef_hat, genis_sorgu=True)
         taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
-    
-    # 2. DENEME: BULAMAZSAN PLAKA SORGULA
-    if not taze_veri:
-        res_plaka = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
-        if res_plaka:
-            for r in res_plaka:
-                if r['plaka'] == hedef_plaka:
-                    taze_veri = r
-                    break
 
     if taze_veri:
         taze_veri['hatkodu'] = taze_veri.get('hatkodu') or hedef_hat
@@ -492,7 +501,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         st.session_state.secilen_plaka = taze_veri
     else:
         arac = eski_veri
-        st.toast("⚠️ Bağlantı bekleniyor...") # Hata yerine uyarı
+        st.toast("⚠️ Bağlantı bekleniyor (Yenileniyor...)")
 
     st.markdown("---")
     
@@ -516,7 +525,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.215)
+    kalibre_toplam = int(ham_toplam * 1.16) + 25
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
@@ -535,12 +544,10 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
         </div>
     """, unsafe_allow_html=True)
     
-    # FİX: DETAYLI NOT (CANLI TAKİP)
     st.markdown("""
         <div class="note-card">
-            ℹ️ <b>BİLGİLENDİRME:</b><br>
-            Yolcu verileri merkezi sistemden kaynaklı olarak gecikmeli yansımaktadır. 
-            Anlık verilerde farklılık olabilir.
+            ⚠️ <b>SİSTEM NOTU:</b><br>
+            Konum ve yolcu verileri merkezi sistemden kaynaklı 2-3 dk gecikmeli gelebilir.
         </div>
     """, unsafe_allow_html=True)
 
