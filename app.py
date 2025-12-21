@@ -96,7 +96,6 @@ st.markdown("""
             display: flex; align-items: center;
         }
         
-        /* DETAYLI NOT KUTUSU (GÜNCELLENDİ) */
         .note-card {
             background-color: #3e2a00;
             border-left: 5px solid #ffc107;
@@ -178,7 +177,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v84_retry_fix", timeout=10)
+        geolocator = Nominatim(user_agent="cntooturk_v85_precision", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -209,27 +208,18 @@ def plaka_duzenle(plaka_ham):
         return p
     except: return plaka_ham
 
-# --- GÜÇLENDİRİLMİŞ VERİ ÇEKME (RETRY LOGIC) ---
 def veri_cek(keyword, genis_sorgu=True):
     try:
         if genis_sorgu:
             payload = {"keyword": keyword, "take": 500, "limit": 500}
         else:
             payload = {"keyword": keyword}
-        
-        # 2 KEZ DENE (Hata Alırsan Tekrarla)
-        for _ in range(2):
-            try:
-                r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=8, verify=False)
-                if r.status_code == 200:
-                    data = r.json().get("result", [])
-                    if data: return data # Veri varsa hemen dön
-            except:
-                time.sleep(1) # Hata varsa 1 sn bekle tekrar dene
-                continue
-                
-        return []
+            
+        r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=5, verify=False)
+        if r.status_code == 200:
+            return r.json().get("result", [])
     except: return []
+    return []
 
 def google_maps_link(lat, lon):
     return f"https://www.google.com/maps?q={lat},{lon}"
@@ -318,9 +308,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # Yolcu kalibrasyon %16 + 25
+                # Yolcu kalibrasyon %8
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.16) + 25
+                k_yolcu = int(h_yolcu * 1.08)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -399,8 +389,8 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         if temiz_data:
             ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
-            # Kalibrasyon %16 + 25 (Araç Başı)
-            kalibre_toplam = int(ham_toplam * 1.16) + (len(temiz_data) * 25)
+            # Kalibrasyon %8 (Sabit Sayı Yok)
+            kalibre_toplam = int(ham_toplam * 1.08)
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -437,9 +427,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # Yolcu kalibrasyon %16 + 25
+                # Yolcu kalibrasyon %8
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.16) + 25
+                k_yolcu = int(h_yolcu * 1.08)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -525,7 +515,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.16) + 25
+    kalibre_toplam = int(ham_toplam * 1.08) # %8 Kalibrasyon
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
@@ -546,8 +536,9 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     st.markdown("""
         <div class="note-card">
-            ⚠️ <b>SİSTEM NOTU:</b><br>
-            Konum ve yolcu verileri merkezi sistemden kaynaklı 2-3 dk gecikmeli gelebilir.
+            ℹ️ <b>BİLGİLENDİRME:</b><br>
+            Yolcu verileri merkezi sistemden kaynaklı olarak gecikmeli yansımaktadır. 
+            Anlık verilerde farklılık olabilir.
         </div>
     """, unsafe_allow_html=True)
 
