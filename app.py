@@ -177,7 +177,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v86_final_fix", timeout=10)
+        geolocator = Nominatim(user_agent="cntooturk_v87_safe_margin", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -308,9 +308,10 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # Yolcu kalibrasyon %25
+                # Yolcu kalibrasyon %25 - 7
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.25)
+                k_yolcu = int(h_yolcu * 1.25) - 7
+                if k_yolcu < h_yolcu: k_yolcu = h_yolcu # Eksiye düşerse ham veriyi kullan
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -389,8 +390,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         if temiz_data:
             ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
-            # Kalibrasyon %25
-            kalibre_toplam = int(ham_toplam * 1.25)
+            # Kalibrasyon %25 - (Araç Sayısı * 7)
+            kalibre_toplam = int(ham_toplam * 1.25) - (len(temiz_data) * 7)
+            if kalibre_toplam < ham_toplam: kalibre_toplam = ham_toplam
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -427,9 +429,10 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # Yolcu kalibrasyon %25
+                # Yolcu kalibrasyon %25 - 7
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.25)
+                k_yolcu = int(h_yolcu * 1.25) - 7
+                if k_yolcu < h_yolcu: k_yolcu = h_yolcu
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -515,7 +518,9 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.25) # %25 Kalibrasyon
+    # Kalibrasyon %25 - 7
+    kalibre_toplam = int(ham_toplam * 1.25) - 7
+    if kalibre_toplam < ham_toplam: kalibre_toplam = ham_toplam
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
