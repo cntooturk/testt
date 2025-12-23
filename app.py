@@ -177,7 +177,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v85_precision", timeout=10)
+        geolocator = Nominatim(user_agent="cntooturk_v86_final_fix", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -308,9 +308,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # Yolcu kalibrasyon %8
+                # Yolcu kalibrasyon %25
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.08)
+                k_yolcu = int(h_yolcu * 1.25)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -389,8 +389,8 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         if temiz_data:
             ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
-            # Kalibrasyon %8 (Sabit Sayı Yok)
-            kalibre_toplam = int(ham_toplam * 1.08)
+            # Kalibrasyon %25
+            kalibre_toplam = int(ham_toplam * 1.25)
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -427,9 +427,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 c2.write(f"{bus['hiz']}")
                 
-                # Yolcu kalibrasyon %8
+                # Yolcu kalibrasyon %25
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.08)
+                k_yolcu = int(h_yolcu * 1.25)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -515,7 +515,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.08) # %8 Kalibrasyon
+    kalibre_toplam = int(ham_toplam * 1.25) # %25 Kalibrasyon
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
@@ -536,9 +536,8 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     st.markdown("""
         <div class="note-card">
-            ℹ️ <b>BİLGİLENDİRME:</b><br>
-            Yolcu verileri merkezi sistemden kaynaklı olarak gecikmeli yansımaktadır. 
-            Anlık verilerde farklılık olabilir.
+            ⚠️ <b>SİSTEM NOTU:</b><br>
+            Konum ve yolcu verileri merkezi sistemden kaynaklı 2-3 dk gecikmeli gelebilir.
         </div>
     """, unsafe_allow_html=True)
 
