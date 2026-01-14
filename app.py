@@ -359,7 +359,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                     for bus in res:
                         if bus.get("plaka", "").replace(" ","") == hedef.replace(" ",""):
                             bulunan = bus
-                            bulunan['hatkodu'] = "SERVİS DIŞI"
+                            bulunan['hatkodu'] = "SERVİSSİL DIŞI"
                             break
                     if bulunan: break
 
@@ -563,5 +563,6 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
+
 
 
