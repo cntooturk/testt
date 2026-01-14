@@ -484,11 +484,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
                 taze_veri = r
                 break
     
-    if not taze_veri and hedef_hat and hedef_hat != "ÖZEL":
-        hat_verisi = veri_cek(hedef_hat, genis_sorgu=True)
-        taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
-
-    if taze_veri:
+    if not 
         taze_veri['hatkodu'] = taze_veri.get('hatkodu') or hedef_hat
         arac = taze_veri
         st.session_state.secilen_plaka = taze_veri
@@ -563,6 +559,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
+
 
 
 
