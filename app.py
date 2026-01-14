@@ -122,7 +122,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-API_URL = "https://bursakartapi.abys-web.com/api/static/realtimedata"
+API_URL = "https://burayisilbursakartapi.abys-web.com/api/static/realtimedata"
 HEADERS = {
     'Content-Type': 'application/json',
     'Origin': 'https://www.bursakart.com.tr',
@@ -563,3 +563,4 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
+
