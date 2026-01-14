@@ -122,7 +122,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-API_URL = "https://burayisilbursakartapi.abys-web.com/api/static/realtimedata"
+API_URL = "https://bursakartapi.abys-web.com/api/static/realtimedata"
 HEADERS = {
     'Content-Type': 'application/json',
     'Origin': 'https://www.bursakart.com.tr',
@@ -279,7 +279,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         st.subheader("💤 Boş / Servis Dışı")
         veriler = []
         with st.spinner("Taranıyor..."):
-            for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
+            for k in ["HAT SEÇİLMEMSİLİŞ", "SERVİS DISİLŞI"]:
                 res = veri_cek(k, genis_sorgu=True)
                 if res: veriler.extend(res)
         
@@ -563,4 +563,5 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
+
 
