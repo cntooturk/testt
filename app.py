@@ -279,7 +279,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         st.subheader("💤 Boş / Servis Dışı")
         veriler = []
         with st.spinner("Taranıyor..."):
-            for k in ["HAT SEÇİLMEMSİLİŞ", "SERVİS DISİLŞI"]:
+            for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
                 res = veri_cek(k, genis_sorgu=True)
                 if res: veriler.extend(res)
         
@@ -359,7 +359,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                     for bus in res:
                         if bus.get("plaka", "").replace(" ","") == hedef.replace(" ",""):
                             bulunan = bus
-                            bulunan['hatkodu'] = "SERVİSSİL DIŞI"
+                            bulunan['hatkodu'] = "SERVİS DIŞI"
                             break
                     if bulunan: break
 
@@ -484,7 +484,11 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
                 taze_veri = r
                 break
     
-    if not 
+    if not taze_veri and hedef_hat and hedef_hat != "ÖZEL":
+        hat_verisi = veri_cek(hedef_hat, genis_sorgu=True)
+        taze_veri = next((x for x in hat_verisi if x['plaka'] == hedef_plaka), None)
+
+    if taze_veri:
         taze_veri['hatkodu'] = taze_veri.get('hatkodu') or hedef_hat
         arac = taze_veri
         st.session_state.secilen_plaka = taze_veri
@@ -559,7 +563,3 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
-
-
-
-
