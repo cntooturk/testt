@@ -175,11 +175,9 @@ def get_turkey_time():
     tz = pytz.timezone('Europe/Istanbul')
     return datetime.now(tz).strftime('%H:%M:%S')
 
-# --- ESKİ VE TEMİZ ADRES MOTORUNA GERİ DÖNÜŞ ---
 def get_address(lat, lon):
     try:
-        # User-Agent sıfırlandı, Loop kaldırıldı
-        geolocator = Nominatim(user_agent="cntooturk_bursa_panel", timeout=5)
+        geolocator = Nominatim(user_agent="cntooturk_v89_final", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -199,8 +197,8 @@ def get_address(lat, lon):
             elif mahalle: return mahalle
             return loc.address.split(",")[0]
     except:
-        return "Adres bilgisi bekleniyor..."
-    return "Adres bilgisi bekleniyor..."
+        return "Konum Bilgisi Alınamadı"
+    return "Adres aranıyor..."
 
 def plaka_duzenle(plaka_ham):
     try:
@@ -213,22 +211,15 @@ def plaka_duzenle(plaka_ham):
 def veri_cek(keyword, genis_sorgu=True):
     try:
         if genis_sorgu:
-            payload = {"keyword": keyword, "take": 2000, "limit": 2000}
+            payload = {"keyword": keyword, "take": 500, "limit": 500}
         else:
             payload = {"keyword": keyword}
             
-        for _ in range(2):
-            try:
-                r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=8, verify=False)
-                if r.status_code == 200:
-                    data = r.json().get("result", [])
-                    if data: return data
-            except:
-                time.sleep(1)
-                continue
-                
-        return []
+        r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=5, verify=False)
+        if r.status_code == 200:
+            return r.json().get("result", [])
     except: return []
+    return []
 
 def google_maps_link(lat, lon):
     return f"https://www.google.com/maps?q={lat},{lon}"
@@ -288,7 +279,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         st.subheader("💤 Boş / Servis Dışı")
         veriler = []
         with st.spinner("Taranıyor..."):
-            for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI", "0", "3"]:
+            for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
                 res = veri_cek(k, genis_sorgu=True)
                 if res: veriler.extend(res)
         
@@ -318,13 +309,14 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.1, 1.1, 1.2, 1.8])
                 c1.write(f"**{bus['plaka']}**")
                 
+                # Hız Kalibrasyon %40
                 h_hiz = float(bus.get('hiz', 0) or 0)
                 k_hiz = int(h_hiz * 1.40)
                 c2.write(f"{k_hiz}")
                 
-                # Yolcu kalibrasyon %8
+                # Yolcu kalibrasyon %5
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.08)
+                k_yolcu = int(h_yolcu * 1.05)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -346,19 +338,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             # 1. HASSAS ARAMA
             status.write(f"📡 '{hedef}' aranıyor...")
             res = veri_cek(hedef, genis_sorgu=False)
-            if not res:
-                res = veri_cek(hedef.replace(" ", ""), genis_sorgu=False)
-                
             if res:
-                for b in res:
-                    if b.get("plaka", "").replace(" ", "") == hedef.replace(" ", ""):
-                        bulunan = b
-                        hk = bulunan.get('hatkodu')
-                        if not hk or str(hk).strip() == "" or str(hk) == "0":
-                            bulunan['hatkodu'] = 'SERVİS DIŞI'
-                        else:
-                            bulunan['hatkodu'] = hk
-                        break
+                bulunan = res[0]
+                bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
             
             # 2. GENİŞ ARAMA
             if not bulunan:
@@ -375,10 +357,9 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                                 break
                         if bulunan: break
             
-            # 3. DERİN BOŞ ARAÇ TARAMASI (2000 Limitli)
             if not bulunan:
                 status.write("💤 Boş araçlara bakılıyor...")
-                for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI", "0", "3"]:
+                for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
                     res = veri_cek(k, genis_sorgu=True)
                     for bus in res:
                         if bus.get("plaka", "").replace(" ","") == hedef.replace(" ",""):
@@ -416,8 +397,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         if temiz_data:
             ham_toplam = sum(int(float(b.get('gunlukYolcu', 0) or 0)) for b in temiz_data)
-            # Kalibrasyon %8
-            kalibre_toplam = int(ham_toplam * 1.08)
+            kalibre_toplam = int(ham_toplam * 1.05)
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -453,13 +433,14 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.1, 1.1, 1.2, 1.8])
                 c1.write(f"**{bus['plaka']}**")
                 
+                # Hız Kalibrasyon %40
                 h_hiz = float(bus.get('hiz', 0) or 0)
                 k_hiz = int(h_hiz * 1.40)
                 c2.write(f"{k_hiz}")
                 
-                # Yolcu kalibrasyon %8
+                # Yolcu kalibrasyon %5
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.08)
+                k_yolcu = int(h_yolcu * 1.05)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -501,6 +482,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hedef_plaka = eski_veri['plaka']
     hedef_hat = eski_veri.get('hatkodu') or st.session_state.aktif_arama
 
+    # GÜÇLENDİRİLMİŞ GÜNCELLEME (RETRY + ÇAPRAZ KONTROL)
     taze_veri = None
     
     res_plaka = veri_cek(plaka_duzenle(hedef_plaka), genis_sorgu=False)
@@ -541,14 +523,14 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 
     hat_no = arac.get('hatkodu') or "---"
     
+    # Hız Kalibrasyon %40
     h_hiz_canli = float(arac.get('hiz', 0) or 0)
     k_hiz_canli = int(h_hiz_canli * 1.40)
     hiz = f"{k_hiz_canli} km/s"
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    # Kalibrasyon %8
-    kalibre_toplam = int(ham_toplam * 1.08)
+    kalibre_toplam = int(ham_toplam * 1.05) # %5 Kalibrasyon
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
@@ -582,7 +564,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     folium.Marker(
         [lat, lon],
         tooltip=f"{arac['plaka']}",
-        popup=f"Hız: {k_hiz_canli}", 
+        popup=f"Hız: {k_hiz_canli}", # Harita üzerindeki hız da %40 artırıldı
         icon=folium.Icon(color="red", icon="bus", prefix="fa")
     ).add_to(m)
     st_folium(m, width=700, height=350)
