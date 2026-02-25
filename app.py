@@ -177,7 +177,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v89_final", timeout=10)
+        geolocator = Nominatim(user_agent="cntooturk_v88_final_3percent", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -290,8 +290,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 temiz_veriler.append(v)
                 goru_plakalar.add(v['plaka'])
         
-        # YOLCU VERİSİNE GÖRE SIRALAMA (BOŞ ARAÇLAR İÇİN)
-        temiz_veriler = sorted(temiz_veriler, key=lambda x: int(float(x.get('gunlukYolcu', 0) or 0)), reverse=True)
         st.session_state.hat_ham_veri = temiz_veriler
         
         if temiz_veriler:
@@ -308,15 +306,11 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             for i, bus in enumerate(temiz_veriler):
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.1, 1.1, 1.2, 1.8])
                 c1.write(f"**{bus['plaka']}**")
+                c2.write(f"{bus['hiz']}")
                 
-                # Hız Kalibrasyon %40
-                h_hiz = float(bus.get('hiz', 0) or 0)
-                k_hiz = int(h_hiz * 1.40)
-                c2.write(f"{k_hiz}")
-                
-                # Yolcu kalibrasyon %5
+                # Yolcu kalibrasyon %3
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.05)
+                k_yolcu = int(h_yolcu * 1.03)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -391,13 +385,12 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                     temiz_data.append(d)
                     goru_plaka.add(d['plaka'])
             
-            # YOLCU VERİSİNE GÖRE BÜYÜKTEN KÜÇÜĞE SIRALAMA
-            temiz_data = sorted(temiz_data, key=lambda x: int(float(x.get('gunlukYolcu', 0) or 0)), reverse=True)
             st.session_state.hat_ham_veri = temiz_data
         
         if temiz_data:
-            ham_toplam = sum(int(float(b.get('gunlukYolcu', 0) or 0)) for b in temiz_data)
-            kalibre_toplam = int(ham_toplam * 1.05)
+            ham_toplam = sum(b.get('gunlukYolcu', 0) for b in temiz_data)
+            # Kalibrasyon %3
+            kalibre_toplam = int(ham_toplam * 1.03)
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -416,7 +409,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             st.markdown("""
                 <div class="note-card">
                     ⚠️ <b>SİSTEM NOTU:</b><br>
-                    Yolcu verileri merkezi sistemden (BURULAŞ/ABYS) kaynaklı olarak 
+                    Yolcu verileri ve konum bilgileri merkezi sistemden (BURULAŞ/ABYS) kaynaklı olarak 
                     2-3 dakika gecikmeli yansıyabilmektedir. Veriler anlık doluluk oranını tam yansıtmayabilir.
                 </div>
             """, unsafe_allow_html=True)
@@ -432,15 +425,11 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
             for i, bus in enumerate(temiz_data):
                 c1, c2, c3, c4, c5 = st.columns([2.2, 1.1, 1.1, 1.2, 1.8])
                 c1.write(f"**{bus['plaka']}**")
+                c2.write(f"{bus['hiz']}")
                 
-                # Hız Kalibrasyon %40
-                h_hiz = float(bus.get('hiz', 0) or 0)
-                k_hiz = int(h_hiz * 1.40)
-                c2.write(f"{k_hiz}")
-                
-                # Yolcu kalibrasyon %5
+                # Yolcu kalibrasyon %3
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.05)
+                k_yolcu = int(h_yolcu * 1.03)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -522,15 +511,12 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     """, unsafe_allow_html=True)
 
     hat_no = arac.get('hatkodu') or "---"
-    
-    # Hız Kalibrasyon %40
-    h_hiz_canli = float(arac.get('hiz', 0) or 0)
-    k_hiz_canli = int(h_hiz_canli * 1.40)
-    hiz = f"{k_hiz_canli} km/s"
+    hiz = f"{arac.get('hiz')} km/s"
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.05) # %5 Kalibrasyon
+    # Kalibrasyon %3
+    kalibre_toplam = int(ham_toplam * 1.03)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
@@ -552,7 +538,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     st.markdown("""
         <div class="note-card">
             ⚠️ <b>SİSTEM NOTU:</b><br>
-            Yolcu verileri merkezi sistemden kaynaklı 2-3 dk gecikmeli gelebilir.
+            Konum ve yolcu verileri merkezi sistemden kaynaklı 2-3 dk gecikmeli gelebilir.
         </div>
     """, unsafe_allow_html=True)
 
@@ -564,7 +550,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     folium.Marker(
         [lat, lon],
         tooltip=f"{arac['plaka']}",
-        popup=f"Hız: {k_hiz_canli}", # Harita üzerindeki hız da %40 artırıldı
+        popup=f"Hız: {arac['hiz']}",
         icon=folium.Icon(color="red", icon="bus", prefix="fa")
     ).add_to(m)
     st_folium(m, width=700, height=350)
