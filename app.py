@@ -175,33 +175,31 @@ def get_turkey_time():
     tz = pytz.timezone('Europe/Istanbul')
     return datetime.now(tz).strftime('%H:%M:%S')
 
-# --- SADELEŞTİRİLMİŞ NET ADRES SİSTEMİ ---
+# --- ESKİ VE TEMİZ ADRES MOTORUNA GERİ DÖNÜŞ ---
 def get_address(lat, lon):
-    for attempt in range(2): 
-        try:
-            geolocator = Nominatim(user_agent=f"cntooturk_v92_geo_{attempt}", timeout=10)
-            loc = geolocator.reverse(f"{lat},{lon}")
-            if loc:
-                address = loc.raw.get('address', {})
-                road = address.get('road', '') 
-                
-                mahalle = ""
-                for key in ['neighbourhood', 'quarter', 'suburb', 'residential', 'village']:
-                    if address.get(key):
-                        mahalle = address.get(key)
-                        break
-                
-                if not mahalle:
-                    mahalle = address.get('town') or address.get('city_district') or address.get('district') or ""
-
-                # Sadece Cadde/Sokak ve Mahalle yazdırır. Koordinat YOK!
-                if road and mahalle: return f"{road}, {mahalle}"
-                elif road: return road
-                elif mahalle: return mahalle
-                return loc.address.split(",")[0]
-        except:
-            time.sleep(1)
+    try:
+        # User-Agent sıfırlandı, Loop kaldırıldı
+        geolocator = Nominatim(user_agent="cntooturk_bursa_panel", timeout=5)
+        loc = geolocator.reverse(f"{lat},{lon}")
+        if loc:
+            address = loc.raw.get('address', {})
+            road = address.get('road', '') 
             
+            mahalle = ""
+            for key in ['neighbourhood', 'quarter', 'suburb', 'residential', 'village']:
+                if address.get(key):
+                    mahalle = address.get(key)
+                    break
+            
+            if not mahalle:
+                mahalle = address.get('town') or address.get('city_district') or address.get('district') or ""
+
+            if road and mahalle: return f"{road}, {mahalle}"
+            elif road: return road
+            elif mahalle: return mahalle
+            return loc.address.split(",")[0]
+    except:
+        return "Adres bilgisi bekleniyor..."
     return "Adres bilgisi bekleniyor..."
 
 def plaka_duzenle(plaka_ham):
@@ -325,7 +323,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c2.write(f"{k_hiz}")
                 
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.08)
+                k_yolcu = int(h_yolcu * 1.05)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -408,13 +406,12 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                     temiz_data.append(d)
                     goru_plaka.add(d['plaka'])
             
-            # YOLCU VERİSİNE GÖRE BÜYÜKTEN KÜÇÜĞE SIRALAMA
             temiz_data = sorted(temiz_data, key=lambda x: int(float(x.get('gunlukYolcu', 0) or 0)), reverse=True)
             st.session_state.hat_ham_veri = temiz_data
         
         if temiz_data:
             ham_toplam = sum(int(float(b.get('gunlukYolcu', 0) or 0)) for b in temiz_data)
-            kalibre_toplam = int(ham_toplam * 1.08)
+            kalibre_toplam = int(ham_toplam * 1.05)
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -434,7 +431,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 <div class="note-card">
                     ⚠️ <b>SİSTEM NOTU:</b><br>
                     Yolcu verileri merkezi sistemden (BURULAŞ/ABYS) kaynaklı olarak 
-                    2-3 dakika gecikmeli yansıyabilmektedir. Veriler anlık doluluk oranını tam yansıtmayabilir.
+                    2-3 dakika gecikmeli yansıyabilmektedir.
                 </div>
             """, unsafe_allow_html=True)
             
@@ -455,7 +452,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c2.write(f"{k_hiz}")
                 
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.08)
+                k_yolcu = int(h_yolcu * 1.05)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -543,7 +540,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.08)
+    kalibre_toplam = int(ham_toplam * 1.05)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
