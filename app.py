@@ -440,7 +440,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 
                 # Yolcu kalibrasyon %5
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.06)
+                k_yolcu = int(h_yolcu * 1.08)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -530,7 +530,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.05) # %5 Kalibrasyon
+    kalibre_toplam = int(ham_toplam * 1.08) # %5 Kalibrasyon
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
@@ -573,5 +573,6 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
+
 
 
