@@ -177,7 +177,7 @@ def get_turkey_time():
 
 def get_address(lat, lon):
     try:
-        geolocator = Nominatim(user_agent="cntooturk_v89_final", timeout=10)
+        geolocator = Nominatim(user_agent="cntooturk_v90_final", timeout=10)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
             address = loc.raw.get('address', {})
@@ -211,15 +211,23 @@ def plaka_duzenle(plaka_ham):
 def veri_cek(keyword, genis_sorgu=True):
     try:
         if genis_sorgu:
-            payload = {"keyword": keyword, "take": 500, "limit": 500}
+            # LİMİT 2000'E ÇIKARILDI (TÜM BOŞ ARAÇLARI KAPSAMASI İÇİN)
+            payload = {"keyword": keyword, "take": 2000, "limit": 2000}
         else:
             payload = {"keyword": keyword}
             
-        r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=5, verify=False)
-        if r.status_code == 200:
-            return r.json().get("result", [])
+        for _ in range(2):
+            try:
+                r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=8, verify=False)
+                if r.status_code == 200:
+                    data = r.json().get("result", [])
+                    if data: return data
+            except:
+                time.sleep(1)
+                continue
+                
+        return []
     except: return []
-    return []
 
 def google_maps_link(lat, lon):
     return f"https://www.google.com/maps?q={lat},{lon}"
@@ -279,7 +287,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         st.subheader("💤 Boş / Servis Dışı")
         veriler = []
         with st.spinner("Taranıyor..."):
-            for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
+            for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI", "0", "3"]:
                 res = veri_cek(k, genis_sorgu=True)
                 if res: veriler.extend(res)
         
@@ -314,7 +322,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 k_hiz = int(h_hiz * 1.40)
                 c2.write(f"{k_hiz}")
                 
-                # Yolcu kalibrasyon %5
+                # Yolcu kalibrasyon %8
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
                 k_yolcu = int(h_yolcu * 1.08)
                 c3.write(f"{k_yolcu}")
@@ -335,14 +343,24 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         with st.status("🔍 Araç aranıyor...", expanded=True) as status:
             bulunan = None
             
-            # 1. HASSAS ARAMA
+            # 1. HASSAS ARAMA (Çift Kontrol)
             status.write(f"📡 '{hedef}' aranıyor...")
             res = veri_cek(hedef, genis_sorgu=False)
+            if not res:
+                res = veri_cek(hedef.replace(" ", ""), genis_sorgu=False) # Boşluksuz da dene
+                
             if res:
-                bulunan = res[0]
-                bulunan['hatkodu'] = bulunan.get('hatkodu', 'ÖZEL')
+                for b in res:
+                    if b.get("plaka", "").replace(" ", "") == hedef.replace(" ", ""):
+                        bulunan = b
+                        hk = bulunan.get('hatkodu')
+                        if not hk or str(hk).strip() == "" or str(hk) == "0":
+                            bulunan['hatkodu'] = 'SERVİS DIŞI'
+                        else:
+                            bulunan['hatkodu'] = hk
+                        break
             
-            # 2. GENİŞ ARAMA
+            # 2. GENİŞ ARAMA (Hatlarda Ara)
             if not bulunan:
                 status.write("🌍 Tüm hatlar taranıyor...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
@@ -357,9 +375,10 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                                 break
                         if bulunan: break
             
+            # 3. DERİN BOŞ ARAÇ TARAMASI (2000 Limitli)
             if not bulunan:
                 status.write("💤 Boş araçlara bakılıyor...")
-                for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI"]:
+                for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI", "0", "3"]:
                     res = veri_cek(k, genis_sorgu=True)
                     for bus in res:
                         if bus.get("plaka", "").replace(" ","") == hedef.replace(" ",""):
@@ -397,6 +416,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         
         if temiz_data:
             ham_toplam = sum(int(float(b.get('gunlukYolcu', 0) or 0)) for b in temiz_data)
+            # Kalibrasyon %8
             kalibre_toplam = int(ham_toplam * 1.08)
             
             c_toplam, c_arac = st.columns(2)
@@ -438,7 +458,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 k_hiz = int(h_hiz * 1.40)
                 c2.write(f"{k_hiz}")
                 
-                # Yolcu kalibrasyon %5
+                # Yolcu kalibrasyon %8
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
                 k_yolcu = int(h_yolcu * 1.08)
                 c3.write(f"{k_yolcu}")
@@ -530,7 +550,8 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    kalibre_toplam = int(ham_toplam * 1.08) # %5 Kalibrasyon
+    # Kalibrasyon %8
+    kalibre_toplam = int(ham_toplam * 1.08)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
@@ -564,7 +585,7 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     folium.Marker(
         [lat, lon],
         tooltip=f"{arac['plaka']}",
-        popup=f"Hız: {k_hiz_canli}", # Harita üzerindeki hız da %40 artırıldı
+        popup=f"Hız: {k_hiz_canli}", 
         icon=folium.Icon(color="red", icon="bus", prefix="fa")
     ).add_to(m)
     st_folium(m, width=700, height=350)
@@ -573,6 +594,3 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
-
-
-
