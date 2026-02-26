@@ -319,12 +319,12 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 
                 h_hiz = float(bus.get('hiz', 0) or 0)
-                k_hiz = int(h_hiz * 1.40)
+                k_hiz = int(h_hiz * 1.45)
                 c2.write(f"{k_hiz}")
                 
                 # Yolcu kalibrasyon %8
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.08)
+                k_yolcu = int(h_yolcu * 1.11)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -417,7 +417,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         if temiz_data:
             ham_toplam = sum(int(float(b.get('gunlukYolcu', 0) or 0)) for b in temiz_data)
             # Kalibrasyon %8
-            kalibre_toplam = int(ham_toplam * 1.08)
+            kalibre_toplam = int(ham_toplam * 1.11)
             
             c_toplam, c_arac = st.columns(2)
             c_toplam.markdown(f"""
@@ -454,12 +454,12 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 
                 h_hiz = float(bus.get('hiz', 0) or 0)
-                k_hiz = int(h_hiz * 1.40)
+                k_hiz = int(h_hiz * 1.45)
                 c2.write(f"{k_hiz}")
                 
                 # Yolcu kalibrasyon %8
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
-                k_yolcu = int(h_yolcu * 1.08)
+                k_yolcu = int(h_yolcu * 1.11)
                 c3.write(f"{k_yolcu}")
                 
                 maps = google_maps_link(bus['enlem'], bus['boylam'])
@@ -542,13 +542,13 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hat_no = arac.get('hatkodu') or "---"
     
     h_hiz_canli = float(arac.get('hiz', 0) or 0)
-    k_hiz_canli = int(h_hiz_canli * 1.40)
+    k_hiz_canli = int(h_hiz_canli * 1.45)
     hiz = f"{k_hiz_canli} km/s"
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
     # Kalibrasyon %8
-    kalibre_toplam = int(ham_toplam * 1.08)
+    kalibre_toplam = int(ham_toplam * 1.11)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f"""<div class="metric-card"><div class="metric-title">HAT</div><div class="metric-value" style="color:#ff4b4b;">{hat_no}</div></div>""", unsafe_allow_html=True)
@@ -591,3 +591,4 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
+
