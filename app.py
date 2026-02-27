@@ -178,7 +178,6 @@ def get_turkey_time():
 # --- ESKİ VE TEMİZ ADRES MOTORUNA GERİ DÖNÜŞ ---
 def get_address(lat, lon):
     try:
-        # User-Agent sıfırlandı, Loop kaldırıldı
         geolocator = Nominatim(user_agent="cntooturk_bursa_panel", timeout=5)
         loc = geolocator.reverse(f"{lat},{lon}")
         if loc:
@@ -299,7 +298,7 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 temiz_veriler.append(v)
                 goru_plakalar.add(v['plaka'])
         
-        # YOLCU VERİSİNE GÖRE SIRALAMA (BOŞ ARAÇLAR İÇİN)
+        # YOLCU VERİSİNE GÖRE SIRALAMA
         temiz_veriler = sorted(temiz_veriler, key=lambda x: int(float(x.get('gunlukYolcu', 0) or 0)), reverse=True)
         st.session_state.hat_ham_veri = temiz_veriler
         
@@ -319,10 +318,10 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 
                 h_hiz = float(bus.get('hiz', 0) or 0)
-                k_hiz = int(h_hiz * 1.45)
+                k_hiz = int(h_hiz * 1.40)
                 c2.write(f"{k_hiz}")
                 
-                # Yolcu kalibrasyon %8
+                # Yolcu kalibrasyon %11
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
                 k_yolcu = int(h_yolcu * 1.11)
                 c3.write(f"{k_yolcu}")
@@ -343,7 +342,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
         with st.status("🔍 Araç aranıyor...", expanded=True) as status:
             bulunan = None
             
-            # 1. HASSAS ARAMA
             status.write(f"📡 '{hedef}' aranıyor...")
             res = veri_cek(hedef, genis_sorgu=False)
             if not res:
@@ -360,7 +358,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                             bulunan['hatkodu'] = hk
                         break
             
-            # 2. GENİŞ ARAMA
             if not bulunan:
                 status.write("🌍 Tüm hatlar taranıyor...")
                 with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
@@ -375,7 +372,6 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                                 break
                         if bulunan: break
             
-            # 3. DERİN BOŞ ARAÇ TARAMASI (2000 Limitli)
             if not bulunan:
                 status.write("💤 Boş araçlara bakılıyor...")
                 for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI", "0", "3"]:
@@ -410,13 +406,12 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                     temiz_data.append(d)
                     goru_plaka.add(d['plaka'])
             
-            # YOLCU VERİSİNE GÖRE BÜYÜKTEN KÜÇÜĞE SIRALAMA
             temiz_data = sorted(temiz_data, key=lambda x: int(float(x.get('gunlukYolcu', 0) or 0)), reverse=True)
             st.session_state.hat_ham_veri = temiz_data
         
         if temiz_data:
             ham_toplam = sum(int(float(b.get('gunlukYolcu', 0) or 0)) for b in temiz_data)
-            # Kalibrasyon %8
+            # Kalibrasyon %11
             kalibre_toplam = int(ham_toplam * 1.11)
             
             c_toplam, c_arac = st.columns(2)
@@ -454,10 +449,10 @@ if st.session_state.aktif_arama and not st.session_state.takip_modu:
                 c1.write(f"**{bus['plaka']}**")
                 
                 h_hiz = float(bus.get('hiz', 0) or 0)
-                k_hiz = int(h_hiz * 1.45)
+                k_hiz = int(h_hiz * 1.40)
                 c2.write(f"{k_hiz}")
                 
-                # Yolcu kalibrasyon %8
+                # Yolcu kalibrasyon %11
                 h_yolcu = bus.get('gunlukYolcu', 0) or 0
                 k_yolcu = int(h_yolcu * 1.11)
                 c3.write(f"{k_yolcu}")
@@ -542,12 +537,12 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
     hat_no = arac.get('hatkodu') or "---"
     
     h_hiz_canli = float(arac.get('hiz', 0) or 0)
-    k_hiz_canli = int(h_hiz_canli * 1.45)
+    k_hiz_canli = int(h_hiz_canli * 1.40)
     hiz = f"{k_hiz_canli} km/s"
     
     ham_anlik = arac.get('seferYolcu')
     ham_toplam = arac.get('gunlukYolcu', 0) or 0
-    # Kalibrasyon %8
+    # Kalibrasyon %11
     kalibre_toplam = int(ham_toplam * 1.11)
 
     c1, c2, c3, c4 = st.columns(4)
@@ -591,4 +586,3 @@ if st.session_state.takip_modu and st.session_state.secilen_plaka:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
-
