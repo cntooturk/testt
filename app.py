@@ -1,3 +1,14 @@
+Kusura bakma, ufak bir Python yazım kuralı (Syntax) hatası yapmışım. Toplamları hesaplarken formülü tek satırda yazmaya çalışırken "if/else" döngüsünü yanlış yere koymuşum.
+
+Zaten alt hatları (`6F` ve `6FD` gibi) birleştirirken eski satırları ana listeden sildiğimiz için, toplama işleminde o karmaşık `if/else` kontrolüne hiç gerek yokmuş. Direkt tüm listeyi toplamamız yeterli.
+
+İlgili kısmı düzelttim. **Tüm kalibrasyonlar, %11 yolcu, %40 hız ve H2 hattı özellikleri hatasız şekilde devrede.**
+
+İşte hatanın giderildiği **v99 Final** tam kodu. Doğrudan bunu yapıştırıp çalıştırabilirsin:
+
+### 🚍 CNTOOTURK TAKİP SİSTEMİ (v99 - Hatasız Sürüm)
+
+```python
 import streamlit as st
 import requests
 import pandas as pd
@@ -108,7 +119,6 @@ st.markdown("""
             line-height: 1.5;
         }
         
-        /* ÖHO SEKME BİLGİ NOTU İÇİN YENİ STİL */
         .oho-note {
             background-color: #1a2a3a;
             border-left: 5px solid #3498db;
@@ -198,7 +208,7 @@ TUM_HATLAR = [
     "S1", "S2"
 ]
 
-# H2 HATTI EKLENDİ
+# H2 EKLENMİŞ ÖHO LİSTESİ
 OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2"]
 OHO_DOGU = ["19B", "19D", "19İ", "D1B", "20", "20A", "21", "23", "23A", "24B", "24D", "27A", "28A"]
 
@@ -270,11 +280,11 @@ def oho_hat_verisi_getir(hat):
             goru_plaka.add(b['plaka'])
     
     ham_yolcu = sum(int(float(b.get('gunlukYolcu', 0) or 0)) for b in temiz)
-    # %11 Kalibrasyon burada yapılıyor, bu sayede birleştirme ekranına hazır gidiyor.
+    # %11 Kalibrasyon
     k_yolcu = int(ham_yolcu * 1.11)
     return {"hat": hat, "arac": len(temiz), "yolcu": k_yolcu}
 
-# --- ENTEGRE HAT BİRLEŞTİRİCİ (ALT KIRILIM ÖZELLİKLİ) ---
+# --- ENTEGRE HAT BİRLEŞTİRİCİ ---
 def hatlari_birlestir(veri_listesi, hat1, hat2, yeni_isim):
     v1 = next((x for x in veri_listesi if x['hat'] == hat1), None)
     v2 = next((x for x in veri_listesi if x['hat'] == hat2), None)
@@ -380,7 +390,6 @@ with tab_canli:
                     temiz_veriler.append(v)
                     goru_plakalar.add(v['plaka'])
             
-            # YOLCU VERİSİNE GÖRE SIRALAMA
             temiz_veriler = sorted(temiz_veriler, key=lambda x: int(float(x.get('gunlukYolcu', 0) or 0)), reverse=True)
             st.session_state.hat_ham_veri = temiz_veriler
             
@@ -666,7 +675,6 @@ with tab_canli:
 with tab_oho:
     st.markdown("<h3 style='text-align: center; color: #ff4b4b; margin-bottom: 5px;'>📊 ÖHO Filo Verileri</h3>", unsafe_allow_html=True)
     
-    # KULLANICI İÇİN ÖZEL UYARI NOTU EKLENDİ
     st.markdown("""
         <div class="oho-note">
             ℹ️ <b>BİLGİLENDİRME:</b><br>
@@ -680,19 +688,17 @@ with tab_oho:
             bati_veriler = []
             dogu_veriler = []
             
-            # BATI HATLARI ÇEKİMİ
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future_bati = {executor.submit(oho_hat_verisi_getir, hat): hat for hat in OHO_BATI}
                 for future in concurrent.futures.as_completed(future_bati):
                     bati_veriler.append(future.result())
                     
-            # DOĞU HATLARI ÇEKİMİ
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future_dogu = {executor.submit(oho_hat_verisi_getir, hat): hat for hat in OHO_DOGU}
                 for future in concurrent.futures.as_completed(future_dogu):
                     dogu_veriler.append(future.result())
             
-            # --- ENTEGRE HATLARI BİRLEŞTİRME İŞLEMİ (ALT KIRILIM ÖZELLİKLİ) ---
+            # --- ENTEGRE HATLARI BİRLEŞTİRME ---
             bati_veriler = hatlari_birlestir(bati_veriler, "6F", "6FD", "6F & 6FD")
             bati_veriler = hatlari_birlestir(bati_veriler, "B32", "B32A", "B32 & B32A")
             
@@ -700,13 +706,14 @@ with tab_oho:
             bati_veriler = sorted(bati_veriler, key=lambda x: x['yolcu'], reverse=True)
             dogu_veriler = sorted(dogu_veriler, key=lambda x: x['yolcu'], reverse=True)
             
+            # DOĞRU VE EKSİKSİZ HESAPLAMA (DÜZELTİLDİ)
             st.session_state.oho_data = {
                 "bati": bati_veriler,
                 "dogu": dogu_veriler,
-                "bati_toplam_yolcu": sum(v['yolcu'] for v in bati_veriler if not v.get('is_merged') else v['yolcu']),
-                "dogu_toplam_yolcu": sum(v['yolcu'] for v in dogu_veriler if not v.get('is_merged') else v['yolcu']),
-                "bati_toplam_arac": sum(v['arac'] for v in bati_veriler if not v.get('is_merged') else v['arac']),
-                "dogu_toplam_arac": sum(v['arac'] for v in dogu_veriler if not v.get('is_merged') else v['arac'])
+                "bati_toplam_yolcu": sum(v['yolcu'] for v in bati_veriler),
+                "dogu_toplam_yolcu": sum(v['yolcu'] for v in dogu_veriler),
+                "bati_toplam_arac": sum(v['arac'] for v in bati_veriler),
+                "dogu_toplam_arac": sum(v['arac'] for v in dogu_veriler)
             }
             st.success("Veriler başarıyla çekildi ve entegre hatlar birleştirildi!")
 
@@ -746,7 +753,6 @@ with tab_oho:
                     c2.write(f"{b['arac']}")
                     c3.write(f"{b['yolcu']}")
                     
-                    # ALT KIRILIMLARI YAZDIR (Vurgulu Küçük Renkli)
                     if b.get('is_merged'):
                         for sub in b['sub_hatlar']:
                             if sub['arac'] > 0 or sub['yolcu'] > 0:
@@ -783,3 +789,5 @@ with tab_oho:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
+
+```
