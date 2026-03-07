@@ -341,7 +341,7 @@ def arac_secildi_callback():
 
 # --- ARAYÜZ BAŞLANGICI ---
 st.title("🚌 Cntooturk Takip Sistemi")
-st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v107")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v108")
 
 # OTOMATİK SEKME DEĞİŞTİRİCİ (JAVASCRIPT)
 if st.session_state.get('do_tab_switch'):
@@ -720,7 +720,8 @@ with tab_oho:
             bati_veriler = hatlari_birlestir(bati_veriler, ["B39", "B39K"], "B39 & B39K")
             bati_veriler = hatlari_birlestir(bati_veriler, ["B31", "B31A"], "B31 & B31A")
             bati_veriler = hatlari_birlestir(bati_veriler, ["B35K1", "B35K2"], "B35K1 & B35K2")
-            bati_veriler = hatlari_birlestir(bati_veriler, ["B3", "B3K"], "B3 & B3K") # YENİ B3 BİRLEŞTİRMESİ
+            bati_veriler = hatlari_birlestir(bati_veriler, ["B3", "B3K"], "B3 & B3K")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["B33A", "B33K"], "B33A & B33K")
             
             # YOLCU SAYISINA GÖRE SIRALAMA
             bati_veriler = sorted(bati_veriler, key=lambda x: x['yolcu'], reverse=True)
