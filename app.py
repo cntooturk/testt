@@ -120,7 +120,6 @@ st.markdown("""
         hr { margin: 2px 0px !important; border-top: 1px solid #333; }
         p { margin: 0px !important; font-size: 13px; color: #ccc; }
         
-        /* Sekme (Tab) Tasarımı İçin Ekstra */
         .stTabs [data-baseweb="tab-list"] {
             gap: 10px;
         }
@@ -262,6 +261,22 @@ def oho_hat_verisi_getir(hat):
     k_yolcu = int(ham_yolcu * 1.11)
     return {"hat": hat, "arac": len(temiz), "yolcu": k_yolcu}
 
+# --- ENTEGRE HAT BİRLEŞTİRİCİ ---
+def hatlari_birlestir(veri_listesi, hat1, hat2, yeni_isim):
+    v1 = next((x for x in veri_listesi if x['hat'] == hat1), None)
+    v2 = next((x for x in veri_listesi if x['hat'] == hat2), None)
+    
+    if v1 or v2:
+        toplam_arac = (v1['arac'] if v1 else 0) + (v2['arac'] if v2 else 0)
+        toplam_yolcu = (v1['yolcu'] if v1 else 0) + (v2['yolcu'] if v2 else 0)
+        
+        # Eski ayrı satırları sil
+        veri_listesi = [x for x in veri_listesi if x['hat'] not in [hat1, hat2]]
+        # Yeni birleşik satırı ekle
+        veri_listesi.append({"hat": yeni_isim, "arac": toplam_arac, "yolcu": toplam_yolcu})
+        
+    return veri_listesi
+
 def google_maps_link(lat, lon):
     return f"https://www.google.com/maps?q={lat},{lon}"
 
@@ -340,7 +355,6 @@ with tab_canli:
                     temiz_veriler.append(v)
                     goru_plakalar.add(v['plaka'])
             
-            # YOLCU VERİSİNE GÖRE SIRALAMA
             temiz_veriler = sorted(temiz_veriler, key=lambda x: int(float(x.get('gunlukYolcu', 0) or 0)), reverse=True)
             st.session_state.hat_ham_veri = temiz_veriler
             
@@ -363,7 +377,6 @@ with tab_canli:
                     k_hiz = int(h_hiz * 1.40)
                     c2.write(f"{k_hiz}")
                     
-                    # Yolcu kalibrasyon %11
                     h_yolcu = bus.get('gunlukYolcu', 0) or 0
                     k_yolcu = int(h_yolcu * 1.11)
                     c3.write(f"{k_yolcu}")
@@ -473,7 +486,7 @@ with tab_canli:
                     <div class="note-card">
                         ⚠️ <b>SİSTEM NOTU:</b><br>
                         Yolcu verileri merkezi sistemden (BURULAŞ/ABYS) kaynaklı olarak 
-                        2-3 dakika gecikmeli yansıyabilmektedir. Veriler anlık doluluk oranını tam yansıtmayabilir.
+                        2-3 dakika gecikmeli yansıyabilmektedir.
                     </div>
                 """, unsafe_allow_html=True)
                 
@@ -493,7 +506,6 @@ with tab_canli:
                     k_hiz = int(h_hiz * 1.40)
                     c2.write(f"{k_hiz}")
                     
-                    # Yolcu kalibrasyon %11
                     h_yolcu = bus.get('gunlukYolcu', 0) or 0
                     k_yolcu = int(h_yolcu * 1.11)
                     c3.write(f"{k_yolcu}")
@@ -556,7 +568,7 @@ with tab_canli:
             st.session_state.secilen_plaka = taze_veri
         else:
             arac = eski_veri
-            st.toast("⚠️ Bağlantı bekleniyor (Yenileniyor...)")
+            st.toast("⚠️ Bağlantı bekleniyor...")
 
         st.markdown("---")
         
@@ -633,17 +645,21 @@ with tab_oho:
             bati_veriler = []
             dogu_veriler = []
             
-            # BATI HATLARI ÇEKİMİ (Paralel)
+            # BATI HATLARI ÇEKİMİ
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future_bati = {executor.submit(oho_hat_verisi_getir, hat): hat for hat in OHO_BATI}
                 for future in concurrent.futures.as_completed(future_bati):
                     bati_veriler.append(future.result())
                     
-            # DOĞU HATLARI ÇEKİMİ (Paralel)
+            # DOĞU HATLARI ÇEKİMİ
             with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                 future_dogu = {executor.submit(oho_hat_verisi_getir, hat): hat for hat in OHO_DOGU}
                 for future in concurrent.futures.as_completed(future_dogu):
                     dogu_veriler.append(future.result())
+            
+            # --- ENTEGRE HATLARI BİRLEŞTİRME İŞLEMİ ---
+            bati_veriler = hatlari_birlestir(bati_veriler, "6F", "6FD", "6F & 6FD")
+            bati_veriler = hatlari_birlestir(bati_veriler, "B32", "B32A", "B32 & B32A")
             
             # YOLCU SAYISINA GÖRE SIRALAMA
             bati_veriler = sorted(bati_veriler, key=lambda x: x['yolcu'], reverse=True)
@@ -657,13 +673,11 @@ with tab_oho:
                 "bati_toplam_arac": sum(v['arac'] for v in bati_veriler),
                 "dogu_toplam_arac": sum(v['arac'] for v in dogu_veriler)
             }
-            st.success("Veriler başarıyla çekildi!")
+            st.success("Veriler başarıyla çekildi ve entegre hatlar birleştirildi!")
 
-    # EĞER VERİ ÇEKİLMİŞSE EKRANA BASTIR
     if st.session_state.oho_data:
         data = st.session_state.oho_data
         
-        # ANA METRİKLER
         cb1, cd1 = st.columns(2)
         cb1.markdown(f"""
             <div class="metric-card" style="border-left: 5px solid #00bc8c;">
@@ -683,7 +697,6 @@ with tab_oho:
         
         st.write("")
         
-        # BATI DETAYLARI EXPANDER
         with st.expander("📂 ÖHO BATI HATLARI DETAYLARI", expanded=False):
             c1, c2, c3 = st.columns([1, 1, 1])
             c1.markdown("<span class='table-header'>HAT NUMARASI</span>", unsafe_allow_html=True)
@@ -692,14 +705,13 @@ with tab_oho:
             st.divider()
             
             for b in data['bati']:
-                if b['arac'] > 0 or b['yolcu'] > 0: # Sadece çalışan hatları göster
+                if b['arac'] > 0 or b['yolcu'] > 0: 
                     c1, c2, c3 = st.columns([1, 1, 1])
                     c1.write(f"**{b['hat']}**")
                     c2.write(f"{b['arac']}")
                     c3.write(f"{b['yolcu']}")
                     st.divider()
 
-        # DOĞU DETAYLARI EXPANDER
         with st.expander("📂 ÖHO DOĞU HATLARI DETAYLARI", expanded=False):
             c1, c2, c3 = st.columns([1, 1, 1])
             c1.markdown("<span class='table-header'>HAT NUMARASI</span>", unsafe_allow_html=True)
@@ -708,7 +720,7 @@ with tab_oho:
             st.divider()
             
             for d in data['dogu']:
-                if d['arac'] > 0 or d['yolcu'] > 0: # Sadece çalışan hatları göster
+                if d['arac'] > 0 or d['yolcu'] > 0: 
                     c1, c2, c3 = st.columns([1, 1, 1])
                     c1.write(f"**{d['hat']}**")
                     c2.write(f"{d['arac']}")
