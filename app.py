@@ -28,9 +28,9 @@ st.markdown("""
             min_height: 24px !important;
             width: 100% !important;
             padding: 0px !important;
-            font-size: 11px !important;
-            margin: 1px 0px !important;
-            line-height: 22px !important;
+            font-size: 12px !important;
+            margin: 4px 0px !important;
+            line-height: 24px !important;
             background-color: #2b2b2b; 
             color: #e0e0e0;
             border: 1px solid #444;
@@ -41,11 +41,11 @@ st.markdown("""
             height: 24px !important;
             min_height: 24px !important;
             width: 100% !important;
-            font-size: 11px !important;
+            font-size: 12px !important;
             padding: 0px !important;
-            margin: 1px 0px !important;
+            margin: 4px 0px !important;
             display: flex; justify-content: center; align-items: center;
-            line-height: 22px !important;
+            line-height: 24px !important;
             background-color: #2b2b2b;
             color: #e0e0e0 !important;
             border: 1px solid #444;
@@ -338,7 +338,7 @@ def arac_secildi_callback():
             time.sleep(1)
 
 st.title("🚌 Cntooturk Takip Sistemi")
-st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v103")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v104")
 
 if st.session_state.show_switch_toast:
     st.toast("✅ Hat verisi başarıyla yüklendi! Lütfen yukarıdan '📍 CANLI TAKİP' sekmesine geçiniz.", icon="🚌")
@@ -689,7 +689,7 @@ with tab_oho:
                 for future in concurrent.futures.as_completed(future_dogu):
                     dogu_veriler.append(future.result())
             
-            # --- KATEGORİ HESAPLAMALARI (Birleştirmeden Önce Doğru Sonuç İçin) ---
+            # --- KATEGORİ HESAPLAMALARI ---
             s_yolcu = sum(v['yolcu'] for v in bati_veriler if v['hat'] in SIRKET_HATLARI)
             o_12m_yolcu = sum(v['yolcu'] for v in bati_veriler if v['hat'] in OTOBUS_12M_HATLARI)
             m_yolcu = sum(v['yolcu'] for v in bati_veriler if v['hat'] not in SIRKET_HATLARI and v['hat'] not in OTOBUS_12M_HATLARI)
@@ -757,7 +757,6 @@ with tab_oho:
                 </div>
             """, unsafe_allow_html=True)
             
-            # YENİ 4 SÜTUNLU TASARIM
             c1, c2, c3, c4 = st.columns([1.5, 1.0, 1.0, 1.2])
             c1.markdown("<span class='table-header' style='text-align:left;'>HAT NUMARASI</span>", unsafe_allow_html=True)
             c2.markdown("<span class='table-header' style='text-align:left;'>AKTİF ARAÇ</span>", unsafe_allow_html=True)
@@ -769,13 +768,9 @@ with tab_oho:
                 if b['arac'] > 0 or b['yolcu'] > 0: 
                     c1, c2, c3, c4 = st.columns([1.5, 1.0, 1.0, 1.2])
                     
-                    if b.get('is_merged'):
-                        c1.markdown(f"<div style='font-size:14px; font-weight:bold; padding-top:2px;'>{b['hat']}</div>", unsafe_allow_html=True)
-                    else:
-                        c1.markdown(f"<div style='font-size:14px; font-weight:bold; padding-top:2px;'>{b['hat']}</div>", unsafe_allow_html=True)
-
-                    c2.markdown(f"<div style='padding-top:2px;'>{b['arac']}</div>", unsafe_allow_html=True)
-                    c3.markdown(f"<div style='padding-top:2px;'>{b['yolcu']}</div>", unsafe_allow_html=True)
+                    c1.markdown(f"<div style='font-size:15px; font-weight:bold; height:32px; display:flex; align-items:center;'>{b['hat']}</div>", unsafe_allow_html=True)
+                    c2.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{b['arac']}</div>", unsafe_allow_html=True)
+                    c3.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{b['yolcu']}</div>", unsafe_allow_html=True)
                     
                     if not b.get('is_merged'):
                         if c4.button("Detay ➡", key=f"detay_b_{b['hat']}", use_container_width=True):
@@ -792,9 +787,9 @@ with tab_oho:
                         for sub in b['sub_hatlar']:
                             if sub['arac'] > 0 or sub['yolcu'] > 0:
                                 sc1, sc2, sc3, sc4 = st.columns([1.5, 1.0, 1.0, 1.2])
-                                sc1.markdown(f"<div style='font-size:11px; color:#ff4b4b; padding-left:15px; padding-top:4px;'>↳ {sub['hat']}</div>", unsafe_allow_html=True)
-                                sc2.markdown(f"<div style='font-size:11px; color:#ff4b4b; padding-top:4px;'>{sub['arac']}</div>", unsafe_allow_html=True)
-                                sc3.markdown(f"<div style='font-size:11px; color:#ff4b4b; padding-top:4px;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
+                                sc1.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; padding-left:15px; height:32px; display:flex; align-items:center;'>↳ {sub['hat']}</div>", unsafe_allow_html=True)
+                                sc2.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['arac']}</div>", unsafe_allow_html=True)
+                                sc3.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
                                 
                                 if sc4.button("Detay ➡", key=f"detay_b_sub_{sub['hat']}", use_container_width=True):
                                     st.session_state.aktif_arama = sub['hat']
@@ -825,13 +820,9 @@ with tab_oho:
                 if d['arac'] > 0 or d['yolcu'] > 0: 
                     c1, c2, c3, c4 = st.columns([1.5, 1.0, 1.0, 1.2])
                     
-                    if d.get('is_merged'):
-                        c1.markdown(f"<div style='font-size:14px; font-weight:bold; padding-top:2px;'>{d['hat']}</div>", unsafe_allow_html=True)
-                    else:
-                        c1.markdown(f"<div style='font-size:14px; font-weight:bold; padding-top:2px;'>{d['hat']}</div>", unsafe_allow_html=True)
-
-                    c2.markdown(f"<div style='padding-top:2px;'>{d['arac']}</div>", unsafe_allow_html=True)
-                    c3.markdown(f"<div style='padding-top:2px;'>{d['yolcu']}</div>", unsafe_allow_html=True)
+                    c1.markdown(f"<div style='font-size:15px; font-weight:bold; height:32px; display:flex; align-items:center;'>{d['hat']}</div>", unsafe_allow_html=True)
+                    c2.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{d['arac']}</div>", unsafe_allow_html=True)
+                    c3.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{d['yolcu']}</div>", unsafe_allow_html=True)
                     
                     if not d.get('is_merged'):
                         if c4.button("Detay ➡", key=f"detay_d_{d['hat']}", use_container_width=True):
@@ -848,9 +839,9 @@ with tab_oho:
                         for sub in d['sub_hatlar']:
                             if sub['arac'] > 0 or sub['yolcu'] > 0:
                                 sc1, sc2, sc3, sc4 = st.columns([1.5, 1.0, 1.0, 1.2])
-                                sc1.markdown(f"<div style='font-size:11px; color:#ff4b4b; padding-left:15px; padding-top:4px;'>↳ {sub['hat']}</div>", unsafe_allow_html=True)
-                                sc2.markdown(f"<div style='font-size:11px; color:#ff4b4b; padding-top:4px;'>{sub['arac']}</div>", unsafe_allow_html=True)
-                                sc3.markdown(f"<div style='font-size:11px; color:#ff4b4b; padding-top:4px;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
+                                sc1.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; padding-left:15px; height:32px; display:flex; align-items:center;'>↳ {sub['hat']}</div>", unsafe_allow_html=True)
+                                sc2.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['arac']}</div>", unsafe_allow_html=True)
+                                sc3.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
                                 
                                 if sc4.button("Detay ➡", key=f"detay_d_sub_{sub['hat']}", use_container_width=True):
                                     st.session_state.aktif_arama = sub['hat']
