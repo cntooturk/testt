@@ -1,14 +1,3 @@
-Kusura bakma, ufak bir Python yazım kuralı (Syntax) hatası yapmışım. Toplamları hesaplarken formülü tek satırda yazmaya çalışırken "if/else" döngüsünü yanlış yere koymuşum.
-
-Zaten alt hatları (`6F` ve `6FD` gibi) birleştirirken eski satırları ana listeden sildiğimiz için, toplama işleminde o karmaşık `if/else` kontrolüne hiç gerek yokmuş. Direkt tüm listeyi toplamamız yeterli.
-
-İlgili kısmı düzelttim. **Tüm kalibrasyonlar, %11 yolcu, %40 hız ve H2 hattı özellikleri hatasız şekilde devrede.**
-
-İşte hatanın giderildiği **v99 Final** tam kodu. Doğrudan bunu yapıştırıp çalıştırabilirsin:
-
-### 🚍 CNTOOTURK TAKİP SİSTEMİ (v99 - Hatasız Sürüm)
-
-```python
 import streamlit as st
 import requests
 import pandas as pd
@@ -706,7 +695,7 @@ with tab_oho:
             bati_veriler = sorted(bati_veriler, key=lambda x: x['yolcu'], reverse=True)
             dogu_veriler = sorted(dogu_veriler, key=lambda x: x['yolcu'], reverse=True)
             
-            # DOĞRU VE EKSİKSİZ HESAPLAMA (DÜZELTİLDİ)
+            # DOĞRU VE EKSİKSİZ HESAPLAMA 
             st.session_state.oho_data = {
                 "bati": bati_veriler,
                 "dogu": dogu_veriler,
@@ -789,5 +778,3 @@ with tab_oho:
 if st.session_state.aktif_arama:
     time.sleep(20)
     st.rerun()
-
-```
