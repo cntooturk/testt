@@ -207,8 +207,8 @@ TUM_HATLAR = [
     "S1", "S2"
 ]
 
-# H2 VE 14L3 EKLENMİŞ ÖHO LİSTESİ
-OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14L3", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2"]
+# H2, 14L3 ve B3K EKLENMİŞ ÖHO LİSTESİ
+OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B3K", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14L3", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2"]
 OHO_DOGU = ["19B", "19D", "19İ", "D1B", "20", "20A", "21", "23", "23A", "24B", "24D", "27A", "28A"]
 
 # --- OTOBÜS TİPLERİ LİSTESİ ---
@@ -341,7 +341,7 @@ def arac_secildi_callback():
 
 # --- ARAYÜZ BAŞLANGICI ---
 st.title("🚌 Cntooturk Takip Sistemi")
-st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v106")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v107")
 
 # OTOMATİK SEKME DEĞİŞTİRİCİ (JAVASCRIPT)
 if st.session_state.get('do_tab_switch'):
@@ -720,6 +720,7 @@ with tab_oho:
             bati_veriler = hatlari_birlestir(bati_veriler, ["B39", "B39K"], "B39 & B39K")
             bati_veriler = hatlari_birlestir(bati_veriler, ["B31", "B31A"], "B31 & B31A")
             bati_veriler = hatlari_birlestir(bati_veriler, ["B35K1", "B35K2"], "B35K1 & B35K2")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["B3", "B3K"], "B3 & B3K") # YENİ B3 BİRLEŞTİRMESİ
             
             # YOLCU SAYISINA GÖRE SIRALAMA
             bati_veriler = sorted(bati_veriler, key=lambda x: x['yolcu'], reverse=True)
@@ -806,8 +807,6 @@ with tab_oho:
                     
                     c1.markdown(f"<div style='font-size:15px; font-weight:bold; height:32px; display:flex; align-items:center;'>{b['hat']}</div>", unsafe_allow_html=True)
                     c2.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{b['arac']}</div>", unsafe_allow_html=True)
-                    
-                    # ANA HAT YOLCU SAYISI (KIRMIZI VE KALIN YAPILDI)
                     c3.markdown(f"<div style='font-size:15px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{b['yolcu']}</div>", unsafe_allow_html=True)
                     
                     if not b.get('is_merged'):
@@ -828,8 +827,6 @@ with tab_oho:
                                 sc1, sc2, sc3, sc4 = st.columns([1.5, 1.0, 1.0, 1.2])
                                 sc1.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; padding-left:15px; height:32px; display:flex; align-items:center;'>↳ {sub['hat']}</div>", unsafe_allow_html=True)
                                 sc2.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['arac']}</div>", unsafe_allow_html=True)
-                                
-                                # ALT KIRILIM YOLCU SAYISI (AÇIK YEŞİL "#00bc8c" YAPILDI)
                                 sc3.markdown(f"<div style='font-size:14px; font-weight:bold; color:#00bc8c; height:32px; display:flex; align-items:center;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
                                 
                                 if sc4.button("Detay ➡", key=f"detay_b_sub_{sub['hat']}", use_container_width=True):
@@ -865,8 +862,6 @@ with tab_oho:
                     
                     c1.markdown(f"<div style='font-size:15px; font-weight:bold; height:32px; display:flex; align-items:center;'>{d['hat']}</div>", unsafe_allow_html=True)
                     c2.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{d['arac']}</div>", unsafe_allow_html=True)
-                    
-                    # ANA HAT YOLCU SAYISI (KIRMIZI VE KALIN YAPILDI)
                     c3.markdown(f"<div style='font-size:15px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{d['yolcu']}</div>", unsafe_allow_html=True)
                     
                     if not d.get('is_merged'):
@@ -887,8 +882,6 @@ with tab_oho:
                                 sc1, sc2, sc3, sc4 = st.columns([1.5, 1.0, 1.0, 1.2])
                                 sc1.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; padding-left:15px; height:32px; display:flex; align-items:center;'>↳ {sub['hat']}</div>", unsafe_allow_html=True)
                                 sc2.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['arac']}</div>", unsafe_allow_html=True)
-                                
-                                # ALT KIRILIM YOLCU SAYISI (AÇIK YEŞİL "#00bc8c" YAPILDI)
                                 sc3.markdown(f"<div style='font-size:14px; font-weight:bold; color:#00bc8c; height:32px; display:flex; align-items:center;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
                                 
                                 if sc4.button("Detay ➡", key=f"detay_d_sub_{sub['hat']}", use_container_width=True):
