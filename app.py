@@ -10,6 +10,7 @@ from datetime import datetime
 import pytz 
 import urllib3
 from geopy.geocoders import Nominatim
+import streamlit.components.v1 as components
 
 # SSL Hata Gizleme
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -206,7 +207,8 @@ TUM_HATLAR = [
     "S1", "S2"
 ]
 
-OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2"]
+# H2 VE 14L3 EKLENMİŞ ÖHO LİSTESİ
+OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14L3", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2"]
 OHO_DOGU = ["19B", "19D", "19İ", "D1B", "20", "20A", "21", "23", "23A", "24B", "24D", "27A", "28A"]
 
 # --- OTOBÜS TİPLERİ LİSTESİ ---
@@ -323,8 +325,8 @@ if 'hat_ham_veri' not in st.session_state:
     st.session_state.hat_ham_veri = []
 if 'oho_data' not in st.session_state:
     st.session_state.oho_data = None
-if 'show_switch_toast' not in st.session_state:
-    st.session_state.show_switch_toast = False
+if 'do_tab_switch' not in st.session_state:
+    st.session_state.do_tab_switch = False
 
 def arac_secildi_callback():
     secim = st.session_state.selectbox_secimi
@@ -337,14 +339,21 @@ def arac_secildi_callback():
             st.session_state.takip_modu = True
             time.sleep(1)
 
+# --- ARAYÜZ BAŞLANGICI ---
 st.title("🚌 Cntooturk Takip Sistemi")
-st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v105")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v106")
 
-# KISAYOL TIKLANDIĞINDA ÇIKAN UYARI MESAJI
-if st.session_state.show_switch_toast:
-    hat_adi = st.session_state.show_switch_toast
-    st.toast(f"✅ {hat_adi} başarıyla arandı! Lütfen yukarıdan '📍 CANLI TAKİP' sekmesine tıklayın.", icon="🚌")
-    st.session_state.show_switch_toast = False
+# OTOMATİK SEKME DEĞİŞTİRİCİ (JAVASCRIPT)
+if st.session_state.get('do_tab_switch'):
+    components.html("""
+        <script>
+            var tabs = window.parent.document.querySelectorAll('button[data-baseweb="tab"]');
+            if(tabs.length > 0){
+                tabs[0].click();
+            }
+        </script>
+    """, height=0)
+    st.session_state.do_tab_switch = False
 
 tab_canli, tab_oho = st.tabs(["📍 CANLI TAKİP", "📊 ÖHO HAT VERİLERİ"])
 
@@ -355,7 +364,6 @@ with tab_canli:
     if not st.session_state.takip_modu:
         col_input, col_btn = st.columns([3, 1])
         with col_input:
-            # Kısayol tıklandığında input kutusu otomatik dolsun diye value eklendi
             giris_text = st.text_input("Giriş:", 
                                        value=st.session_state.get('giris_input', ''), 
                                        placeholder="Örn: 16M10171 veya B5", 
@@ -798,7 +806,8 @@ with tab_oho:
                     
                     c1.markdown(f"<div style='font-size:15px; font-weight:bold; height:32px; display:flex; align-items:center;'>{b['hat']}</div>", unsafe_allow_html=True)
                     c2.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{b['arac']}</div>", unsafe_allow_html=True)
-                    # YOLCU SAYISI KIRMIZI VE KALIN YAPILDI
+                    
+                    # ANA HAT YOLCU SAYISI (KIRMIZI VE KALIN YAPILDI)
                     c3.markdown(f"<div style='font-size:15px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{b['yolcu']}</div>", unsafe_allow_html=True)
                     
                     if not b.get('is_merged'):
@@ -808,7 +817,7 @@ with tab_oho:
                             st.session_state.takip_modu = False
                             st.session_state.secilen_plaka = None
                             st.session_state.hat_ham_veri = []
-                            st.session_state.show_switch_toast = b['hat']
+                            st.session_state.do_tab_switch = True
                             st.rerun()
                     else:
                         c4.write("")
@@ -819,7 +828,9 @@ with tab_oho:
                                 sc1, sc2, sc3, sc4 = st.columns([1.5, 1.0, 1.0, 1.2])
                                 sc1.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; padding-left:15px; height:32px; display:flex; align-items:center;'>↳ {sub['hat']}</div>", unsafe_allow_html=True)
                                 sc2.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['arac']}</div>", unsafe_allow_html=True)
-                                sc3.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
+                                
+                                # ALT KIRILIM YOLCU SAYISI (AÇIK YEŞİL "#00bc8c" YAPILDI)
+                                sc3.markdown(f"<div style='font-size:14px; font-weight:bold; color:#00bc8c; height:32px; display:flex; align-items:center;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
                                 
                                 if sc4.button("Detay ➡", key=f"detay_b_sub_{sub['hat']}", use_container_width=True):
                                     st.session_state.aktif_arama = sub['hat']
@@ -827,7 +838,7 @@ with tab_oho:
                                     st.session_state.takip_modu = False
                                     st.session_state.secilen_plaka = None
                                     st.session_state.hat_ham_veri = []
-                                    st.session_state.show_switch_toast = sub['hat']
+                                    st.session_state.do_tab_switch = True
                                     st.rerun()
                     st.divider()
 
@@ -854,7 +865,8 @@ with tab_oho:
                     
                     c1.markdown(f"<div style='font-size:15px; font-weight:bold; height:32px; display:flex; align-items:center;'>{d['hat']}</div>", unsafe_allow_html=True)
                     c2.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{d['arac']}</div>", unsafe_allow_html=True)
-                    # YOLCU SAYISI KIRMIZI VE KALIN YAPILDI
+                    
+                    # ANA HAT YOLCU SAYISI (KIRMIZI VE KALIN YAPILDI)
                     c3.markdown(f"<div style='font-size:15px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{d['yolcu']}</div>", unsafe_allow_html=True)
                     
                     if not d.get('is_merged'):
@@ -864,7 +876,7 @@ with tab_oho:
                             st.session_state.takip_modu = False
                             st.session_state.secilen_plaka = None
                             st.session_state.hat_ham_veri = []
-                            st.session_state.show_switch_toast = d['hat']
+                            st.session_state.do_tab_switch = True
                             st.rerun()
                     else:
                         c4.write("")
@@ -875,7 +887,9 @@ with tab_oho:
                                 sc1, sc2, sc3, sc4 = st.columns([1.5, 1.0, 1.0, 1.2])
                                 sc1.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; padding-left:15px; height:32px; display:flex; align-items:center;'>↳ {sub['hat']}</div>", unsafe_allow_html=True)
                                 sc2.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['arac']}</div>", unsafe_allow_html=True)
-                                sc3.markdown(f"<div style='font-size:14px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
+                                
+                                # ALT KIRILIM YOLCU SAYISI (AÇIK YEŞİL "#00bc8c" YAPILDI)
+                                sc3.markdown(f"<div style='font-size:14px; font-weight:bold; color:#00bc8c; height:32px; display:flex; align-items:center;'>{sub['yolcu']}</div>", unsafe_allow_html=True)
                                 
                                 if sc4.button("Detay ➡", key=f"detay_d_sub_{sub['hat']}", use_container_width=True):
                                     st.session_state.aktif_arama = sub['hat']
@@ -883,7 +897,7 @@ with tab_oho:
                                     st.session_state.takip_modu = False
                                     st.session_state.secilen_plaka = None
                                     st.session_state.hat_ham_veri = []
-                                    st.session_state.show_switch_toast = sub['hat']
+                                    st.session_state.do_tab_switch = True
                                     st.rerun()
                     st.divider()
 
