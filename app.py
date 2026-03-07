@@ -28,7 +28,7 @@ st.markdown("""
             min_height: 24px !important;
             width: 100% !important;
             padding: 0px !important;
-            font-size: 12px !important;
+            font-size: 11px !important;
             margin: 4px 0px !important;
             line-height: 24px !important;
             background-color: #2b2b2b; 
@@ -41,7 +41,7 @@ st.markdown("""
             height: 24px !important;
             min_height: 24px !important;
             width: 100% !important;
-            font-size: 12px !important;
+            font-size: 11px !important;
             padding: 0px !important;
             margin: 4px 0px !important;
             display: flex; justify-content: center; align-items: center;
@@ -284,7 +284,7 @@ def oho_hat_verisi_getir(hat):
     k_yolcu = int(ham_yolcu * 1.11)
     return {"hat": hat, "arac": len(temiz), "yolcu": k_yolcu}
 
-# --- ENTEGRE HAT BİRLEŞTİRİCİ ---
+# --- ENTEGRE HAT BİRLEŞTİRİCİ (ÇOKLU HAT DESTEĞİ) ---
 def hatlari_birlestir(veri_listesi, hatlar_listesi, yeni_isim):
     birlesecekler = [x for x in veri_listesi if x['hat'] in hatlar_listesi]
     
@@ -338,10 +338,12 @@ def arac_secildi_callback():
             time.sleep(1)
 
 st.title("🚌 Cntooturk Takip Sistemi")
-st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v104")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v105")
 
+# KISAYOL TIKLANDIĞINDA ÇIKAN UYARI MESAJI
 if st.session_state.show_switch_toast:
-    st.toast("✅ Hat verisi başarıyla yüklendi! Lütfen yukarıdan '📍 CANLI TAKİP' sekmesine geçiniz.", icon="🚌")
+    hat_adi = st.session_state.show_switch_toast
+    st.toast(f"✅ {hat_adi} başarıyla arandı! Lütfen yukarıdan '📍 CANLI TAKİP' sekmesine tıklayın.", icon="🚌")
     st.session_state.show_switch_toast = False
 
 tab_canli, tab_oho = st.tabs(["📍 CANLI TAKİP", "📊 ÖHO HAT VERİLERİ"])
@@ -353,7 +355,11 @@ with tab_canli:
     if not st.session_state.takip_modu:
         col_input, col_btn = st.columns([3, 1])
         with col_input:
-            giris_text = st.text_input("Giriş:", placeholder="Örn: 16M10171 veya B5", key="giris_input")
+            # Kısayol tıklandığında input kutusu otomatik dolsun diye value eklendi
+            giris_text = st.text_input("Giriş:", 
+                                       value=st.session_state.get('giris_input', ''), 
+                                       placeholder="Örn: 16M10171 veya B5", 
+                                       key="giris_kutu")
         with col_btn:
             st.write("") 
             st.write("") 
@@ -362,6 +368,7 @@ with tab_canli:
         if btn_baslat and giris_text:
             giris_temiz = giris_text.replace("i", "İ").replace("ı", "I").upper().strip()
             st.session_state.aktif_arama = giris_temiz
+            st.session_state.giris_input = giris_temiz
             st.session_state.takip_modu = False 
             st.session_state.secilen_plaka = None
             st.session_state.hat_ham_veri = []
@@ -563,6 +570,7 @@ with tab_canli:
                 st.session_state.takip_modu = False
                 st.session_state.secilen_plaka = None
                 st.session_state.aktif_arama = None
+                st.session_state.giris_input = ""
                 st.session_state.hat_ham_veri = []
                 st.rerun()
         else:
@@ -703,6 +711,7 @@ with tab_oho:
             bati_veriler = hatlari_birlestir(bati_veriler, ["1T", "1TG", "1TK"], "1T & 1TG & 1TK")
             bati_veriler = hatlari_birlestir(bati_veriler, ["B39", "B39K"], "B39 & B39K")
             bati_veriler = hatlari_birlestir(bati_veriler, ["B31", "B31A"], "B31 & B31A")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["B35K1", "B35K2"], "B35K1 & B35K2")
             
             # YOLCU SAYISINA GÖRE SIRALAMA
             bati_veriler = sorted(bati_veriler, key=lambda x: x['yolcu'], reverse=True)
@@ -726,6 +735,24 @@ with tab_oho:
 
     if st.session_state.oho_data:
         data = st.session_state.oho_data
+        
+        # --- FARK HESAPLAMALARI VE HTML DİZİLİMLERİ ---
+        fark_bati = abs(data['otobus_toplam'] - data['mikrobus_toplam'])
+        if data['otobus_toplam'] > data['mikrobus_toplam']:
+            bati_fark_html = f"<div style='color:#00bc8c; font-size:12px; margin-top:8px; border-top: 1px dashed #555; padding-top: 6px;'>🟢 <b>Otobüsler</b>, mikrobüslerden <b>{fark_bati}</b> yolcu fazla.</div>"
+        elif data['mikrobus_toplam'] > data['otobus_toplam']:
+            bati_fark_html = f"<div style='color:#00bc8c; font-size:12px; margin-top:8px; border-top: 1px dashed #555; padding-top: 6px;'>🟢 <b>Mikrobüsler</b>, otobüslerden <b>{fark_bati}</b> yolcu fazla.</div>"
+        else:
+            bati_fark_html = f"<div style='color:#00bc8c; font-size:12px; margin-top:8px; border-top: 1px dashed #555; padding-top: 6px;'>🟢 Otobüs ve Mikrobüs yolcu sayıları eşit.</div>"
+
+        fark_dogu = abs(data['dogu_otobus_toplam'] - data['dogu_mikrobus_toplam'])
+        if data['dogu_otobus_toplam'] > data['dogu_mikrobus_toplam']:
+            dogu_fark_html = f"<div style='color:#00bc8c; font-size:12px; margin-top:8px; border-top: 1px dashed #555; padding-top: 6px;'>🟢 <b>Otobüsler</b>, mikrobüslerden <b>{fark_dogu}</b> yolcu fazla.</div>"
+        elif data['dogu_mikrobus_toplam'] > data['dogu_otobus_toplam']:
+            dogu_fark_html = f"<div style='color:#00bc8c; font-size:12px; margin-top:8px; border-top: 1px dashed #555; padding-top: 6px;'>🟢 <b>Mikrobüsler</b>, otobüslerden <b>{fark_dogu}</b> yolcu fazla.</div>"
+        else:
+            dogu_fark_html = f"<div style='color:#00bc8c; font-size:12px; margin-top:8px; border-top: 1px dashed #555; padding-top: 6px;'>🟢 Otobüs ve Mikrobüs yolcu sayıları eşit.</div>"
+
         
         cb1, cd1 = st.columns(2)
         cb1.markdown(f"""
@@ -754,6 +781,7 @@ with tab_oho:
                     <div style="color:#aaa; font-size:12px; margin-left:25px; margin-bottom:3px;">• Şirket Araçları (6E, 6A, 97A): <span style="color:#fff;">{data['sirket_yolcu']}</span></div>
                     <div style="color:#aaa; font-size:12px; margin-left:25px; margin-bottom:8px;">• 12 Metre Araçlar: <span style="color:#fff;">{data['otobus_12m_yolcu']}</span></div>
                     <div style="color:#fff; font-size:16px; font-weight:bold;">🚐 MİKROBÜS HATLARI: <span style="color:#f39c12;">{data['mikrobus_toplam']}</span> Yolcu</div>
+                    {bati_fark_html}
                 </div>
             """, unsafe_allow_html=True)
             
@@ -770,15 +798,17 @@ with tab_oho:
                     
                     c1.markdown(f"<div style='font-size:15px; font-weight:bold; height:32px; display:flex; align-items:center;'>{b['hat']}</div>", unsafe_allow_html=True)
                     c2.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{b['arac']}</div>", unsafe_allow_html=True)
-                    c3.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{b['yolcu']}</div>", unsafe_allow_html=True)
+                    # YOLCU SAYISI KIRMIZI VE KALIN YAPILDI
+                    c3.markdown(f"<div style='font-size:15px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{b['yolcu']}</div>", unsafe_allow_html=True)
                     
                     if not b.get('is_merged'):
                         if c4.button("Detay ➡", key=f"detay_b_{b['hat']}", use_container_width=True):
                             st.session_state.aktif_arama = b['hat']
+                            st.session_state.giris_input = b['hat']
                             st.session_state.takip_modu = False
                             st.session_state.secilen_plaka = None
                             st.session_state.hat_ham_veri = []
-                            st.session_state.show_switch_toast = True
+                            st.session_state.show_switch_toast = b['hat']
                             st.rerun()
                     else:
                         c4.write("")
@@ -793,10 +823,11 @@ with tab_oho:
                                 
                                 if sc4.button("Detay ➡", key=f"detay_b_sub_{sub['hat']}", use_container_width=True):
                                     st.session_state.aktif_arama = sub['hat']
+                                    st.session_state.giris_input = sub['hat']
                                     st.session_state.takip_modu = False
                                     st.session_state.secilen_plaka = None
                                     st.session_state.hat_ham_veri = []
-                                    st.session_state.show_switch_toast = True
+                                    st.session_state.show_switch_toast = sub['hat']
                                     st.rerun()
                     st.divider()
 
@@ -806,6 +837,7 @@ with tab_oho:
                 <div class="type-summary-card">
                     <div style="color:#fff; font-size:16px; font-weight:bold; margin-bottom:5px;">🚌 OTOBÜS HATLARI: <span style="color:#f39c12;">{data['dogu_otobus_toplam']}</span> Yolcu</div>
                     <div style="color:#fff; font-size:16px; font-weight:bold;">🚐 MİKROBÜS HATLARI: <span style="color:#f39c12;">{data['dogu_mikrobus_toplam']}</span> Yolcu</div>
+                    {dogu_fark_html}
                 </div>
             """, unsafe_allow_html=True)
             
@@ -822,15 +854,17 @@ with tab_oho:
                     
                     c1.markdown(f"<div style='font-size:15px; font-weight:bold; height:32px; display:flex; align-items:center;'>{d['hat']}</div>", unsafe_allow_html=True)
                     c2.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{d['arac']}</div>", unsafe_allow_html=True)
-                    c3.markdown(f"<div style='font-size:15px; height:32px; display:flex; align-items:center;'>{d['yolcu']}</div>", unsafe_allow_html=True)
+                    # YOLCU SAYISI KIRMIZI VE KALIN YAPILDI
+                    c3.markdown(f"<div style='font-size:15px; font-weight:bold; color:#ff4b4b; height:32px; display:flex; align-items:center;'>{d['yolcu']}</div>", unsafe_allow_html=True)
                     
                     if not d.get('is_merged'):
                         if c4.button("Detay ➡", key=f"detay_d_{d['hat']}", use_container_width=True):
                             st.session_state.aktif_arama = d['hat']
+                            st.session_state.giris_input = d['hat']
                             st.session_state.takip_modu = False
                             st.session_state.secilen_plaka = None
                             st.session_state.hat_ham_veri = []
-                            st.session_state.show_switch_toast = True
+                            st.session_state.show_switch_toast = d['hat']
                             st.rerun()
                     else:
                         c4.write("")
@@ -845,10 +879,11 @@ with tab_oho:
                                 
                                 if sc4.button("Detay ➡", key=f"detay_d_sub_{sub['hat']}", use_container_width=True):
                                     st.session_state.aktif_arama = sub['hat']
+                                    st.session_state.giris_input = sub['hat']
                                     st.session_state.takip_modu = False
                                     st.session_state.secilen_plaka = None
                                     st.session_state.hat_ham_veri = []
-                                    st.session_state.show_switch_toast = True
+                                    st.session_state.show_switch_toast = sub['hat']
                                     st.rerun()
                     st.divider()
 
