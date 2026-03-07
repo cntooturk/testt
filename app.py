@@ -107,6 +107,18 @@ st.markdown("""
             font-size: 12px;
             line-height: 1.5;
         }
+        
+        /* ÖHO SEKME BİLGİ NOTU İÇİN YENİ STİL */
+        .oho-note {
+            background-color: #1a2a3a;
+            border-left: 5px solid #3498db;
+            color: #e0e0e0;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
 
         .table-header {
             font-size: 11px;
@@ -186,7 +198,8 @@ TUM_HATLAR = [
     "S1", "S2"
 ]
 
-OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A"]
+# H2 HATTI EKLENDİ
+OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2"]
 OHO_DOGU = ["19B", "19D", "19İ", "D1B", "20", "20A", "21", "23", "23A", "24B", "24D", "27A", "28A"]
 
 def get_turkey_time():
@@ -257,11 +270,11 @@ def oho_hat_verisi_getir(hat):
             goru_plaka.add(b['plaka'])
     
     ham_yolcu = sum(int(float(b.get('gunlukYolcu', 0) or 0)) for b in temiz)
-    # %11 Kalibrasyon
+    # %11 Kalibrasyon burada yapılıyor, bu sayede birleştirme ekranına hazır gidiyor.
     k_yolcu = int(ham_yolcu * 1.11)
     return {"hat": hat, "arac": len(temiz), "yolcu": k_yolcu}
 
-# --- ENTEGRE HAT BİRLEŞTİRİCİ ---
+# --- ENTEGRE HAT BİRLEŞTİRİCİ (ALT KIRILIM ÖZELLİKLİ) ---
 def hatlari_birlestir(veri_listesi, hat1, hat2, yeni_isim):
     v1 = next((x for x in veri_listesi if x['hat'] == hat1), None)
     v2 = next((x for x in veri_listesi if x['hat'] == hat2), None)
@@ -270,10 +283,22 @@ def hatlari_birlestir(veri_listesi, hat1, hat2, yeni_isim):
         toplam_arac = (v1['arac'] if v1 else 0) + (v2['arac'] if v2 else 0)
         toplam_yolcu = (v1['yolcu'] if v1 else 0) + (v2['yolcu'] if v2 else 0)
         
-        # Eski ayrı satırları sil
+        # Alt kırılım verilerini sakla (Ekranda göstermek için)
+        sub_hatlar = []
+        if v1: sub_hatlar.append(v1)
+        if v2: sub_hatlar.append(v2)
+        
+        # Eski ayrı satırları listeden çıkar
         veri_listesi = [x for x in veri_listesi if x['hat'] not in [hat1, hat2]]
-        # Yeni birleşik satırı ekle
-        veri_listesi.append({"hat": yeni_isim, "arac": toplam_arac, "yolcu": toplam_yolcu})
+        
+        # Yeni birleşik satırı ve içine gizlenmiş alt verileri ekle
+        veri_listesi.append({
+            "hat": yeni_isim, 
+            "arac": toplam_arac, 
+            "yolcu": toplam_yolcu,
+            "is_merged": True,
+            "sub_hatlar": sub_hatlar
+        })
         
     return veri_listesi
 
@@ -355,6 +380,7 @@ with tab_canli:
                     temiz_veriler.append(v)
                     goru_plakalar.add(v['plaka'])
             
+            # YOLCU VERİSİNE GÖRE SIRALAMA
             temiz_veriler = sorted(temiz_veriler, key=lambda x: int(float(x.get('gunlukYolcu', 0) or 0)), reverse=True)
             st.session_state.hat_ham_veri = temiz_veriler
             
@@ -568,7 +594,7 @@ with tab_canli:
             st.session_state.secilen_plaka = taze_veri
         else:
             arac = eski_veri
-            st.toast("⚠️ Bağlantı bekleniyor...")
+            st.toast("⚠️ Bağlantı bekleniyor (Yenileniyor...)")
 
         st.markdown("---")
         
@@ -638,8 +664,17 @@ with tab_canli:
 # 2. SEKME: YENİ ÖHO İSTATİSTİK SİSTEMİ
 # ==========================================
 with tab_oho:
-    st.markdown("<h3 style='text-align: center; color: #ff4b4b; margin-bottom: 20px;'>📊 ÖHO Filo Verileri</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #ff4b4b; margin-bottom: 5px;'>📊 ÖHO Filo Verileri</h3>", unsafe_allow_html=True)
     
+    # KULLANICI İÇİN ÖZEL UYARI NOTU EKLENDİ
+    st.markdown("""
+        <div class="oho-note">
+            ℹ️ <b>BİLGİLENDİRME:</b><br>
+            Bu veriler anlık olarak hat numarası açık olan araçlardan çekilmektedir. 
+            Yolcu verilerinde gecikmeler yaşanmaktadır.
+        </div>
+    """, unsafe_allow_html=True)
+
     if st.button("🔄 Tüm Verileri Yükle / Güncelle", use_container_width=True, type="primary"):
         with st.spinner("Tüm ÖHO Hatları (Batı ve Doğu) taranıyor, bu işlem birkaç saniye sürebilir..."):
             bati_veriler = []
@@ -657,7 +692,7 @@ with tab_oho:
                 for future in concurrent.futures.as_completed(future_dogu):
                     dogu_veriler.append(future.result())
             
-            # --- ENTEGRE HATLARI BİRLEŞTİRME İŞLEMİ ---
+            # --- ENTEGRE HATLARI BİRLEŞTİRME İŞLEMİ (ALT KIRILIM ÖZELLİKLİ) ---
             bati_veriler = hatlari_birlestir(bati_veriler, "6F", "6FD", "6F & 6FD")
             bati_veriler = hatlari_birlestir(bati_veriler, "B32", "B32A", "B32 & B32A")
             
@@ -668,10 +703,10 @@ with tab_oho:
             st.session_state.oho_data = {
                 "bati": bati_veriler,
                 "dogu": dogu_veriler,
-                "bati_toplam_yolcu": sum(v['yolcu'] for v in bati_veriler),
-                "dogu_toplam_yolcu": sum(v['yolcu'] for v in dogu_veriler),
-                "bati_toplam_arac": sum(v['arac'] for v in bati_veriler),
-                "dogu_toplam_arac": sum(v['arac'] for v in dogu_veriler)
+                "bati_toplam_yolcu": sum(v['yolcu'] for v in bati_veriler if not v.get('is_merged') else v['yolcu']),
+                "dogu_toplam_yolcu": sum(v['yolcu'] for v in dogu_veriler if not v.get('is_merged') else v['yolcu']),
+                "bati_toplam_arac": sum(v['arac'] for v in bati_veriler if not v.get('is_merged') else v['arac']),
+                "dogu_toplam_arac": sum(v['arac'] for v in dogu_veriler if not v.get('is_merged') else v['arac'])
             }
             st.success("Veriler başarıyla çekildi ve entegre hatlar birleştirildi!")
 
@@ -710,6 +745,15 @@ with tab_oho:
                     c1.write(f"**{b['hat']}**")
                     c2.write(f"{b['arac']}")
                     c3.write(f"{b['yolcu']}")
+                    
+                    # ALT KIRILIMLARI YAZDIR (Vurgulu Küçük Renkli)
+                    if b.get('is_merged'):
+                        for sub in b['sub_hatlar']:
+                            if sub['arac'] > 0 or sub['yolcu'] > 0:
+                                c1, c2, c3 = st.columns([1, 1, 1])
+                                c1.markdown(f"<span style='font-size:11px; color:#ff4b4b; padding-left:15px;'>↳ {sub['hat']}</span>", unsafe_allow_html=True)
+                                c2.markdown(f"<span style='font-size:11px; color:#ff4b4b;'>{sub['arac']}</span>", unsafe_allow_html=True)
+                                c3.markdown(f"<span style='font-size:11px; color:#ff4b4b;'>{sub['yolcu']}</span>", unsafe_allow_html=True)
                     st.divider()
 
         with st.expander("📂 ÖHO DOĞU HATLARI DETAYLARI", expanded=False):
@@ -725,6 +769,14 @@ with tab_oho:
                     c1.write(f"**{d['hat']}**")
                     c2.write(f"{d['arac']}")
                     c3.write(f"{d['yolcu']}")
+                    
+                    if d.get('is_merged'):
+                        for sub in d['sub_hatlar']:
+                            if sub['arac'] > 0 or sub['yolcu'] > 0:
+                                c1, c2, c3 = st.columns([1, 1, 1])
+                                c1.markdown(f"<span style='font-size:11px; color:#ff4b4b; padding-left:15px;'>↳ {sub['hat']}</span>", unsafe_allow_html=True)
+                                c2.markdown(f"<span style='font-size:11px; color:#ff4b4b;'>{sub['arac']}</span>", unsafe_allow_html=True)
+                                c3.markdown(f"<span style='font-size:11px; color:#ff4b4b;'>{sub['yolcu']}</span>", unsafe_allow_html=True)
                     st.divider()
 
 # --- GLOBAL REFRESH ---
