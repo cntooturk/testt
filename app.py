@@ -118,6 +118,15 @@ st.markdown("""
             font-size: 12px;
             line-height: 1.5;
         }
+        
+        .type-summary-card {
+            background-color: #1e1e1e;
+            border: 1px solid #444;
+            border-left: 4px solid #f39c12;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
 
         .table-header {
             font-size: 11px;
@@ -197,9 +206,12 @@ TUM_HATLAR = [
     "S1", "S2"
 ]
 
-# H2 EKLENMİŞ ÖHO LİSTESİ
 OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2"]
 OHO_DOGU = ["19B", "19D", "19İ", "D1B", "20", "20A", "21", "23", "23A", "24B", "24D", "27A", "28A"]
+
+# --- OTOBÜS TİPLERİ LİSTESİ ---
+SIRKET_HATLARI = ["6E", "6A", "97A"]
+OTOBUS_12M_HATLARI = ["1T", "1TG", "1TK", "6F", "6FD", "6K1", "8L", "9D", "B24", "B25", "B40", "40H", "B41B", "B41C", "B42A", "43A", "B44B", "H2"]
 
 def get_turkey_time():
     tz = pytz.timezone('Europe/Istanbul')
@@ -258,7 +270,6 @@ def veri_cek(keyword, genis_sorgu=True):
         return []
     except: return []
 
-# --- ÖHO İSTATİSTİK İÇİN ÖZEL VERİ ÇEKME FONKSİYONU ---
 def oho_hat_verisi_getir(hat):
     res = veri_cek(hat, genis_sorgu=True)
     goru_plaka = set()
@@ -269,11 +280,9 @@ def oho_hat_verisi_getir(hat):
             goru_plaka.add(b['plaka'])
     
     ham_yolcu = sum(int(float(b.get('gunlukYolcu', 0) or 0)) for b in temiz)
-    # %11 Kalibrasyon
     k_yolcu = int(ham_yolcu * 1.11)
     return {"hat": hat, "arac": len(temiz), "yolcu": k_yolcu}
 
-# --- ENTEGRE HAT BİRLEŞTİRİCİ ---
 def hatlari_birlestir(veri_listesi, hat1, hat2, yeni_isim):
     v1 = next((x for x in veri_listesi if x['hat'] == hat1), None)
     v2 = next((x for x in veri_listesi if x['hat'] == hat2), None)
@@ -282,15 +291,12 @@ def hatlari_birlestir(veri_listesi, hat1, hat2, yeni_isim):
         toplam_arac = (v1['arac'] if v1 else 0) + (v2['arac'] if v2 else 0)
         toplam_yolcu = (v1['yolcu'] if v1 else 0) + (v2['yolcu'] if v2 else 0)
         
-        # Alt kırılım verilerini sakla (Ekranda göstermek için)
         sub_hatlar = []
         if v1: sub_hatlar.append(v1)
         if v2: sub_hatlar.append(v2)
         
-        # Eski ayrı satırları listeden çıkar
         veri_listesi = [x for x in veri_listesi if x['hat'] not in [hat1, hat2]]
         
-        # Yeni birleşik satırı ve içine gizlenmiş alt verileri ekle
         veri_listesi.append({
             "hat": yeni_isim, 
             "arac": toplam_arac, 
@@ -307,7 +313,6 @@ def google_maps_link(lat, lon):
 def yandex_maps_link(lat, lon):
     return f"https://yandex.com.tr/harita/?text={lat},{lon}"
 
-# --- SESSION STATE ---
 if 'secilen_plaka' not in st.session_state:
     st.session_state.secilen_plaka = None
 if 'takip_modu' not in st.session_state:
@@ -319,7 +324,6 @@ if 'hat_ham_veri' not in st.session_state:
 if 'oho_data' not in st.session_state:
     st.session_state.oho_data = None
 
-# --- CALLBACK ---
 def arac_secildi_callback():
     secim = st.session_state.selectbox_secimi
     if secim and secim != "Seçiniz...":
@@ -331,18 +335,15 @@ def arac_secildi_callback():
             st.session_state.takip_modu = True
             time.sleep(1)
 
-# --- ARAYÜZ BAŞLANGICI ---
 st.title("🚌 Cntooturk Takip Sistemi")
 st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme")
 
-# SEKMELERİ OLUŞTUR
 tab_canli, tab_oho = st.tabs(["📍 CANLI TAKİP", "📊 ÖHO HAT VERİLERİ"])
 
 # ==========================================
 # 1. SEKME: MEVCUT CANLI TAKİP SİSTEMİ
 # ==========================================
 with tab_canli:
-    # GİRİŞ KUTUSU
     if not st.session_state.takip_modu:
         col_input, col_btn = st.columns([3, 1])
         with col_input:
@@ -359,11 +360,9 @@ with tab_canli:
             st.session_state.secilen_plaka = None
             st.session_state.hat_ham_veri = []
 
-    # --- LİSTELEME MODU ---
     if st.session_state.aktif_arama and not st.session_state.takip_modu:
         giris = st.session_state.aktif_arama
         
-        # 3 (BOŞ ARAÇLAR)
         if giris == "3" or giris == "0":
             st.subheader("💤 Boş / Servis Dışı")
             veriler = []
@@ -415,7 +414,6 @@ with tab_canli:
                         st.rerun()
                     st.divider()
 
-        # PLAKA SORGUSU
         elif len(giris) > 4 and giris[0].isdigit():
             hedef = plaka_duzenle(giris)
             with st.status("🔍 Araç aranıyor...", expanded=True) as status:
@@ -472,7 +470,6 @@ with tab_canli:
                     status.update(label="❌ Bulunamadı", state="error", expanded=True)
                     st.error(f"❌ {hedef} bulunamadı. Araç cihazı uykuda veya şartel kapatılmış olabilir.")
 
-        # HAT SORGUSU
         else:
             st.subheader(f"📊 Hat: {giris}")
             with st.spinner("Veriler yükleniyor..."):
@@ -550,7 +547,6 @@ with tab_canli:
             else:
                 st.warning("Hat verisi alınamadı.")
 
-    # --- 2. MOD: CANLI TAKİP ---
     if st.session_state.takip_modu and st.session_state.secilen_plaka:
         
         arama_terimi = st.session_state.aktif_arama
@@ -687,6 +683,11 @@ with tab_oho:
                 for future in concurrent.futures.as_completed(future_dogu):
                     dogu_veriler.append(future.result())
             
+            # KATEGORİ HESAPLAMALARI (Birleştirmeden Önce)
+            s_yolcu = sum(v['yolcu'] for v in bati_veriler if v['hat'] in SIRKET_HATLARI)
+            o_12m_yolcu = sum(v['yolcu'] for v in bati_veriler if v['hat'] in OTOBUS_12M_HATLARI)
+            m_yolcu = sum(v['yolcu'] for v in bati_veriler if v['hat'] not in SIRKET_HATLARI and v['hat'] not in OTOBUS_12M_HATLARI)
+            
             # --- ENTEGRE HATLARI BİRLEŞTİRME ---
             bati_veriler = hatlari_birlestir(bati_veriler, "6F", "6FD", "6F & 6FD")
             bati_veriler = hatlari_birlestir(bati_veriler, "B32", "B32A", "B32 & B32A")
@@ -695,14 +696,17 @@ with tab_oho:
             bati_veriler = sorted(bati_veriler, key=lambda x: x['yolcu'], reverse=True)
             dogu_veriler = sorted(dogu_veriler, key=lambda x: x['yolcu'], reverse=True)
             
-            # DOĞRU VE EKSİKSİZ HESAPLAMA 
             st.session_state.oho_data = {
                 "bati": bati_veriler,
                 "dogu": dogu_veriler,
                 "bati_toplam_yolcu": sum(v['yolcu'] for v in bati_veriler),
                 "dogu_toplam_yolcu": sum(v['yolcu'] for v in dogu_veriler),
                 "bati_toplam_arac": sum(v['arac'] for v in bati_veriler),
-                "dogu_toplam_arac": sum(v['arac'] for v in dogu_veriler)
+                "dogu_toplam_arac": sum(v['arac'] for v in dogu_veriler),
+                "sirket_yolcu": s_yolcu,
+                "otobus_12m_yolcu": o_12m_yolcu,
+                "otobus_toplam": s_yolcu + o_12m_yolcu,
+                "mikrobus_toplam": m_yolcu
             }
             st.success("Veriler başarıyla çekildi ve entegre hatlar birleştirildi!")
 
@@ -729,6 +733,17 @@ with tab_oho:
         st.write("")
         
         with st.expander("📂 ÖHO BATI HATLARI DETAYLARI", expanded=False):
+            
+            # OTOBÜS / MİKROBÜS ÖZET KARTI
+            st.markdown(f"""
+                <div class="type-summary-card">
+                    <div style="color:#fff; font-size:16px; font-weight:bold; margin-bottom:5px;">🚌 OTOBÜS HATLARI: <span style="color:#f39c12;">{data['otobus_toplam']}</span> Yolcu</div>
+                    <div style="color:#aaa; font-size:12px; margin-left:25px; margin-bottom:3px;">• Şirket Araçları (6E, 6A, 97A): <span style="color:#fff;">{data['sirket_yolcu']}</span></div>
+                    <div style="color:#aaa; font-size:12px; margin-left:25px; margin-bottom:8px;">• 12 Metre Araçlar: <span style="color:#fff;">{data['otobus_12m_yolcu']}</span></div>
+                    <div style="color:#fff; font-size:16px; font-weight:bold;">🚐 MİKROBÜS HATLARI: <span style="color:#f39c12;">{data['mikrobus_toplam']}</span> Yolcu</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
             c1, c2, c3 = st.columns([1, 1, 1])
             c1.markdown("<span class='table-header'>HAT NUMARASI</span>", unsafe_allow_html=True)
             c2.markdown("<span class='table-header'>AKTİF ARAÇ</span>", unsafe_allow_html=True)
