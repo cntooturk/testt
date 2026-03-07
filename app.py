@@ -212,6 +212,7 @@ OHO_DOGU = ["19B", "19D", "19İ", "D1B", "20", "20A", "21", "23", "23A", "24B", 
 # --- OTOBÜS TİPLERİ LİSTESİ ---
 SIRKET_HATLARI = ["6E", "6A", "97A"]
 OTOBUS_12M_HATLARI = ["1T", "1TG", "1TK", "6F", "6FD", "6K1", "8L", "9D", "B24", "B25", "B40", "40H", "B41B", "B41C", "B42A", "43A", "B44B", "H2"]
+DOGU_MIKROBUS_HATLARI = ["19D", "24D", "27A", "28A"]
 
 def get_turkey_time():
     tz = pytz.timezone('Europe/Istanbul')
@@ -283,19 +284,16 @@ def oho_hat_verisi_getir(hat):
     k_yolcu = int(ham_yolcu * 1.11)
     return {"hat": hat, "arac": len(temiz), "yolcu": k_yolcu}
 
-def hatlari_birlestir(veri_listesi, hat1, hat2, yeni_isim):
-    v1 = next((x for x in veri_listesi if x['hat'] == hat1), None)
-    v2 = next((x for x in veri_listesi if x['hat'] == hat2), None)
+# --- ENTEGRE HAT BİRLEŞTİRİCİ (ÇOKLU HAT DESTEĞİ) ---
+def hatlari_birlestir(veri_listesi, hatlar_listesi, yeni_isim):
+    birlesecekler = [x for x in veri_listesi if x['hat'] in hatlar_listesi]
     
-    if v1 or v2:
-        toplam_arac = (v1['arac'] if v1 else 0) + (v2['arac'] if v2 else 0)
-        toplam_yolcu = (v1['yolcu'] if v1 else 0) + (v2['yolcu'] if v2 else 0)
+    if birlesecekler:
+        toplam_arac = sum(x['arac'] for x in birlesecekler)
+        toplam_yolcu = sum(x['yolcu'] for x in birlesecekler)
         
-        sub_hatlar = []
-        if v1: sub_hatlar.append(v1)
-        if v2: sub_hatlar.append(v2)
-        
-        veri_listesi = [x for x in veri_listesi if x['hat'] not in [hat1, hat2]]
+        sub_hatlar = birlesecekler
+        veri_listesi = [x for x in veri_listesi if x['hat'] not in hatlar_listesi]
         
         veri_listesi.append({
             "hat": yeni_isim, 
@@ -683,14 +681,20 @@ with tab_oho:
                 for future in concurrent.futures.as_completed(future_dogu):
                     dogu_veriler.append(future.result())
             
-            # KATEGORİ HESAPLAMALARI (Birleştirmeden Önce)
+            # --- KATEGORİ HESAPLAMALARI (Birleştirmeden Önce Doğru Sonuç İçin) ---
             s_yolcu = sum(v['yolcu'] for v in bati_veriler if v['hat'] in SIRKET_HATLARI)
             o_12m_yolcu = sum(v['yolcu'] for v in bati_veriler if v['hat'] in OTOBUS_12M_HATLARI)
             m_yolcu = sum(v['yolcu'] for v in bati_veriler if v['hat'] not in SIRKET_HATLARI and v['hat'] not in OTOBUS_12M_HATLARI)
             
+            dogu_m_yolcu = sum(v['yolcu'] for v in dogu_veriler if v['hat'] in DOGU_MIKROBUS_HATLARI)
+            dogu_o_yolcu = sum(v['yolcu'] for v in dogu_veriler if v['hat'] not in DOGU_MIKROBUS_HATLARI)
+            
             # --- ENTEGRE HATLARI BİRLEŞTİRME ---
-            bati_veriler = hatlari_birlestir(bati_veriler, "6F", "6FD", "6F & 6FD")
-            bati_veriler = hatlari_birlestir(bati_veriler, "B32", "B32A", "B32 & B32A")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["6F", "6FD"], "6F & 6FD")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["B32", "B32A"], "B32 & B32A")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["1T", "1TG", "1TK"], "1T & 1TG & 1TK")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["B39", "B39K"], "B39 & B39K")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["B31", "B31A"], "B31 & B31A")
             
             # YOLCU SAYISINA GÖRE SIRALAMA
             bati_veriler = sorted(bati_veriler, key=lambda x: x['yolcu'], reverse=True)
@@ -706,7 +710,9 @@ with tab_oho:
                 "sirket_yolcu": s_yolcu,
                 "otobus_12m_yolcu": o_12m_yolcu,
                 "otobus_toplam": s_yolcu + o_12m_yolcu,
-                "mikrobus_toplam": m_yolcu
+                "mikrobus_toplam": m_yolcu,
+                "dogu_otobus_toplam": dogu_o_yolcu,
+                "dogu_mikrobus_toplam": dogu_m_yolcu
             }
             st.success("Veriler başarıyla çekildi ve entegre hatlar birleştirildi!")
 
@@ -734,7 +740,6 @@ with tab_oho:
         
         with st.expander("📂 ÖHO BATI HATLARI DETAYLARI", expanded=False):
             
-            # OTOBÜS / MİKROBÜS ÖZET KARTI
             st.markdown(f"""
                 <div class="type-summary-card">
                     <div style="color:#fff; font-size:16px; font-weight:bold; margin-bottom:5px;">🚌 OTOBÜS HATLARI: <span style="color:#f39c12;">{data['otobus_toplam']}</span> Yolcu</div>
@@ -767,6 +772,14 @@ with tab_oho:
                     st.divider()
 
         with st.expander("📂 ÖHO DOĞU HATLARI DETAYLARI", expanded=False):
+            
+            st.markdown(f"""
+                <div class="type-summary-card">
+                    <div style="color:#fff; font-size:16px; font-weight:bold; margin-bottom:5px;">🚌 OTOBÜS HATLARI: <span style="color:#f39c12;">{data['dogu_otobus_toplam']}</span> Yolcu</div>
+                    <div style="color:#fff; font-size:16px; font-weight:bold;">🚐 MİKROBÜS HATLARI: <span style="color:#f39c12;">{data['dogu_mikrobus_toplam']}</span> Yolcu</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
             c1, c2, c3 = st.columns([1, 1, 1])
             c1.markdown("<span class='table-header'>HAT NUMARASI</span>", unsafe_allow_html=True)
             c2.markdown("<span class='table-header'>AKTİF ARAÇ</span>", unsafe_allow_html=True)
