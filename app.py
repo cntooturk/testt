@@ -284,7 +284,7 @@ def oho_hat_verisi_getir(hat):
     k_yolcu = int(ham_yolcu * 1.11)
     return {"hat": hat, "arac": len(temiz), "yolcu": k_yolcu}
 
-# --- ENTEGRE HAT BİRLEŞTİRİCİ (ÇOKLU HAT DESTEĞİ) ---
+# --- ENTEGRE HAT BİRLEŞTİRİCİ VE ALT KIRILIM SIRALAYICI ---
 def hatlari_birlestir(veri_listesi, hatlar_listesi, yeni_isim):
     birlesecekler = [x for x in veri_listesi if x['hat'] in hatlar_listesi]
     
@@ -292,7 +292,9 @@ def hatlari_birlestir(veri_listesi, hatlar_listesi, yeni_isim):
         toplam_arac = sum(x['arac'] for x in birlesecekler)
         toplam_yolcu = sum(x['yolcu'] for x in birlesecekler)
         
-        sub_hatlar = birlesecekler
+        # Alt Kırılımları Yolcu Sayısına Göre Büyükten Küçüğe Sırala
+        sub_hatlar = sorted(birlesecekler, key=lambda x: x['yolcu'], reverse=True)
+        
         veri_listesi = [x for x in veri_listesi if x['hat'] not in hatlar_listesi]
         
         veri_listesi.append({
@@ -321,6 +323,8 @@ if 'hat_ham_veri' not in st.session_state:
     st.session_state.hat_ham_veri = []
 if 'oho_data' not in st.session_state:
     st.session_state.oho_data = None
+if 'show_switch_toast' not in st.session_state:
+    st.session_state.show_switch_toast = False
 
 def arac_secildi_callback():
     secim = st.session_state.selectbox_secimi
@@ -333,8 +337,13 @@ def arac_secildi_callback():
             st.session_state.takip_modu = True
             time.sleep(1)
 
+# --- ARAYÜZ BAŞLANGICI ---
 st.title("🚌 Cntooturk Takip Sistemi")
-st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v102")
+
+if st.session_state.show_switch_toast:
+    st.toast("✅ Hat verisi başarıyla yüklendi! Lütfen yukarıdan '📍 CANLI TAKİP' sekmesine geçiniz.", icon="🚌")
+    st.session_state.show_switch_toast = False
 
 tab_canli, tab_oho = st.tabs(["📍 CANLI TAKİP", "📊 ÖHO HAT VERİLERİ"])
 
@@ -758,7 +767,18 @@ with tab_oho:
             for b in data['bati']:
                 if b['arac'] > 0 or b['yolcu'] > 0: 
                     c1, c2, c3 = st.columns([1, 1, 1])
-                    c1.write(f"**{b['hat']}**")
+                    
+                    if b.get('is_merged'):
+                        c1.markdown(f"<div style='font-size:13px; font-weight:bold; padding-top:4px;'>{b['hat']}</div>", unsafe_allow_html=True)
+                    else:
+                        if c1.button(f"🔍 {b['hat']}", key=f"btn_b_{b['hat']}", use_container_width=True):
+                            st.session_state.aktif_arama = b['hat']
+                            st.session_state.takip_modu = False
+                            st.session_state.secilen_plaka = None
+                            st.session_state.hat_ham_veri = []
+                            st.session_state.show_switch_toast = True
+                            st.rerun()
+
                     c2.write(f"{b['arac']}")
                     c3.write(f"{b['yolcu']}")
                     
@@ -766,7 +786,13 @@ with tab_oho:
                         for sub in b['sub_hatlar']:
                             if sub['arac'] > 0 or sub['yolcu'] > 0:
                                 c1, c2, c3 = st.columns([1, 1, 1])
-                                c1.markdown(f"<span style='font-size:11px; color:#ff4b4b; padding-left:15px;'>↳ {sub['hat']}</span>", unsafe_allow_html=True)
+                                if c1.button(f"↳ {sub['hat']}", key=f"btn_b_sub_{sub['hat']}", use_container_width=True):
+                                    st.session_state.aktif_arama = sub['hat']
+                                    st.session_state.takip_modu = False
+                                    st.session_state.secilen_plaka = None
+                                    st.session_state.hat_ham_veri = []
+                                    st.session_state.show_switch_toast = True
+                                    st.rerun()
                                 c2.markdown(f"<span style='font-size:11px; color:#ff4b4b;'>{sub['arac']}</span>", unsafe_allow_html=True)
                                 c3.markdown(f"<span style='font-size:11px; color:#ff4b4b;'>{sub['yolcu']}</span>", unsafe_allow_html=True)
                     st.divider()
@@ -789,7 +815,18 @@ with tab_oho:
             for d in data['dogu']:
                 if d['arac'] > 0 or d['yolcu'] > 0: 
                     c1, c2, c3 = st.columns([1, 1, 1])
-                    c1.write(f"**{d['hat']}**")
+                    
+                    if d.get('is_merged'):
+                        c1.markdown(f"<div style='font-size:13px; font-weight:bold; padding-top:4px;'>{d['hat']}</div>", unsafe_allow_html=True)
+                    else:
+                        if c1.button(f"🔍 {d['hat']}", key=f"btn_d_{d['hat']}", use_container_width=True):
+                            st.session_state.aktif_arama = d['hat']
+                            st.session_state.takip_modu = False
+                            st.session_state.secilen_plaka = None
+                            st.session_state.hat_ham_veri = []
+                            st.session_state.show_switch_toast = True
+                            st.rerun()
+
                     c2.write(f"{d['arac']}")
                     c3.write(f"{d['yolcu']}")
                     
@@ -797,7 +834,13 @@ with tab_oho:
                         for sub in d['sub_hatlar']:
                             if sub['arac'] > 0 or sub['yolcu'] > 0:
                                 c1, c2, c3 = st.columns([1, 1, 1])
-                                c1.markdown(f"<span style='font-size:11px; color:#ff4b4b; padding-left:15px;'>↳ {sub['hat']}</span>", unsafe_allow_html=True)
+                                if c1.button(f"↳ {sub['hat']}", key=f"btn_d_sub_{sub['hat']}", use_container_width=True):
+                                    st.session_state.aktif_arama = sub['hat']
+                                    st.session_state.takip_modu = False
+                                    st.session_state.secilen_plaka = None
+                                    st.session_state.hat_ham_veri = []
+                                    st.session_state.show_switch_toast = True
+                                    st.rerun()
                                 c2.markdown(f"<span style='font-size:11px; color:#ff4b4b;'>{sub['arac']}</span>", unsafe_allow_html=True)
                                 c3.markdown(f"<span style='font-size:11px; color:#ff4b4b;'>{sub['yolcu']}</span>", unsafe_allow_html=True)
                     st.divider()
