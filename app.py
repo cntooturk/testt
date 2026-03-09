@@ -1,5 +1,7 @@
 import streamlit as st
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
@@ -158,6 +160,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# --- BAĞLANTI HAVUZU (HIZ OPTİMİZASYONU İÇİN) ---
 API_URL = "https://bursakartapi.abys-web.com/api/static/realtimedata"
 HEADERS = {
     'Content-Type': 'application/json',
@@ -165,6 +168,16 @@ HEADERS = {
     'Referer': 'https://www.bursakart.com.tr/',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
 }
+
+@st.cache_resource
+def get_http_session():
+    session = requests.Session()
+    retry = Retry(connect=2, backoff_factor=0.2)
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=150, pool_maxsize=150)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    session.headers.update(HEADERS)
+    return session
 
 # --- HAT LİSTELERİ ---
 TUM_HATLAR = [
@@ -207,7 +220,6 @@ TUM_HATLAR = [
     "S1", "S2"
 ]
 
-# YENİ HATLARLA GENİŞLETİLMİŞ BATI LİSTESİ
 OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B3K", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14L3", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2", "H3", "H3B", "H3D", "6F1", "6F2", "B20G"]
 OHO_DOGU = ["19B", "19D", "19İ", "D1B", "20", "20A", "21", "23", "23A", "24B", "24D", "27A", "28A"]
 
@@ -260,14 +272,16 @@ def veri_cek(keyword, genis_sorgu=True):
         else:
             payload = {"keyword": keyword}
             
+        session = get_http_session()
         for _ in range(2):
             try:
-                r = requests.post(API_URL, headers=HEADERS, json=payload, timeout=8, verify=False)
+                # Timeout 5 saniyeye düşürüldü ki hızlıca ikinci denemeye geçsin
+                r = session.post(API_URL, json=payload, timeout=5, verify=False)
                 if r.status_code == 200:
                     data = r.json().get("result", [])
                     if data: return data
             except:
-                time.sleep(1)
+                time.sleep(0.5)
                 continue
                 
         return []
@@ -286,7 +300,7 @@ def oho_hat_verisi_getir(hat):
     k_yolcu = int(ham_yolcu * 1.11)
     return {"hat": hat, "arac": len(temiz), "yolcu": k_yolcu}
 
-# --- ENTEGRE HAT BİRLEŞTİRİCİ (ÇOKLU HAT DESTEĞİ) ---
+# --- ENTEGRE HAT BİRLEŞTİRİCİ ---
 def hatlari_birlestir(veri_listesi, hatlar_listesi, yeni_isim):
     birlesecekler = [x for x in veri_listesi if x['hat'] in hatlar_listesi]
     
@@ -294,7 +308,6 @@ def hatlari_birlestir(veri_listesi, hatlar_listesi, yeni_isim):
         toplam_arac = sum(x['arac'] for x in birlesecekler)
         toplam_yolcu = sum(x['yolcu'] for x in birlesecekler)
         
-        # Alt Kırılımları Yolcu Sayısına Göre Büyükten Küçüğe Sırala
         sub_hatlar = sorted(birlesecekler, key=lambda x: x['yolcu'], reverse=True)
         
         veri_listesi = [x for x in veri_listesi if x['hat'] not in hatlar_listesi]
@@ -341,9 +354,9 @@ def arac_secildi_callback():
 
 # --- ARAYÜZ BAŞLANGICI ---
 st.title("🚌 Cntooturk Takip Sistemi")
-st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v109")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v110 (Hızlı)")
 
-# OTOMATİK SEKME DEĞİŞTİRİCİ (JAVASCRIPT)
+# OTOMATİK SEKME DEĞİŞTİRİCİ
 if st.session_state.get('do_tab_switch'):
     components.html("""
         <script>
@@ -384,13 +397,16 @@ with tab_canli:
     if st.session_state.aktif_arama and not st.session_state.takip_modu:
         giris = st.session_state.aktif_arama
         
+        # --- HIZLANDIRILMIŞ BOŞ ARAÇ TARAMASI ---
         if giris == "3" or giris == "0":
             st.subheader("💤 Boş / Servis Dışı")
             veriler = []
             with st.spinner("Taranıyor..."):
-                for k in ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI", "0", "3"]:
-                    res = veri_cek(k, genis_sorgu=True)
-                    if res: veriler.extend(res)
+                anahtarlar = ["HAT SEÇİLMEMİŞ", "SERVİS DIŞI", "0", "3"]
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+                    sonuclar = executor.map(lambda k: veri_cek(k, genis_sorgu=True), anahtarlar)
+                    for res in sonuclar:
+                        if res: veriler.extend(res)
             
             temiz_veriler = []
             goru_plakalar = set()
@@ -435,6 +451,7 @@ with tab_canli:
                         st.rerun()
                     st.divider()
 
+        # PLAKA SORGUSU
         elif len(giris) > 4 and giris[0].isdigit():
             hedef = plaka_duzenle(giris)
             with st.status("🔍 Araç aranıyor...", expanded=True) as status:
@@ -458,7 +475,8 @@ with tab_canli:
                 
                 if not bulunan:
                     status.write("🌍 Tüm hatlar taranıyor...")
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
+                    # HIZ İÇİN WORKER SAYISI 30'A ÇIKARILDI
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
                         future_to_hat = {executor.submit(veri_cek, hat, True): hat for hat in TUM_HATLAR}
                         for future in concurrent.futures.as_completed(future_to_hat):
                             data = future.result()
@@ -695,12 +713,12 @@ with tab_oho:
             bati_veriler = []
             dogu_veriler = []
             
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
                 future_bati = {executor.submit(oho_hat_verisi_getir, hat): hat for hat in OHO_BATI}
                 for future in concurrent.futures.as_completed(future_bati):
                     bati_veriler.append(future.result())
                     
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
                 future_dogu = {executor.submit(oho_hat_verisi_getir, hat): hat for hat in OHO_DOGU}
                 for future in concurrent.futures.as_completed(future_dogu):
                     dogu_veriler.append(future.result())
