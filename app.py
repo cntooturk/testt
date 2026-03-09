@@ -207,8 +207,8 @@ TUM_HATLAR = [
     "S1", "S2"
 ]
 
-# H2, 14L3 ve B3K EKLENMİŞ ÖHO LİSTESİ
-OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B3K", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14L3", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2"]
+# YENİ HATLARLA GENİŞLETİLMİŞ BATI LİSTESİ
+OHO_BATI = ["1C", "1T", "1TG", "1TK", "2B", "2BT", "2E", "B2", "B3", "B3K", "B4", "B5", "6F", "6FD", "6E", "6A", "6K1", "B8", "8L", "9D", "9M", "9PA", "B9", "B10", "B10K", "B12", "B13", "14L", "14L2", "14L3", "14N", "14F", "B16A", "B16B", "B17", "B17B", "B17A", "B20A", "B20B", "B20C", "B20D", "B24", "B25", "B27", "B29", "B31", "B31A", "B32", "B32A", "B33", "B33H", "B33A", "B33K", "B34", "B34U", "B35K1", "B35K2", "35H", "B36", "B36M", "B36C", "B36A", "B36U", "B38", "B39", "B39K", "B40", "40H", "B41B", "B41C", "B42A", "B43", "43A", "B44B", "B46", "97A", "H2", "H3", "H3B", "H3D", "6F1", "6F2", "B20G"]
 OHO_DOGU = ["19B", "19D", "19İ", "D1B", "20", "20A", "21", "23", "23A", "24B", "24D", "27A", "28A"]
 
 # --- OTOBÜS TİPLERİ LİSTESİ ---
@@ -341,7 +341,7 @@ def arac_secildi_callback():
 
 # --- ARAYÜZ BAŞLANGICI ---
 st.title("🚌 Cntooturk Takip Sistemi")
-st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v108")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v109")
 
 # OTOMATİK SEKME DEĞİŞTİRİCİ (JAVASCRIPT)
 if st.session_state.get('do_tab_switch'):
@@ -722,6 +722,10 @@ with tab_oho:
             bati_veriler = hatlari_birlestir(bati_veriler, ["B35K1", "B35K2"], "B35K1 & B35K2")
             bati_veriler = hatlari_birlestir(bati_veriler, ["B3", "B3K"], "B3 & B3K")
             bati_veriler = hatlari_birlestir(bati_veriler, ["B33A", "B33K"], "B33A & B33K")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["H3", "H3B", "H3D"], "H3 & H3B & H3D")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["B20A", "B20C"], "B20A & B20C")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["14L2", "14L3"], "14L2 & 14L3")
+            bati_veriler = hatlari_birlestir(bati_veriler, ["B36", "B36M"], "B36 & B36M")
             
             # YOLCU SAYISINA GÖRE SIRALAMA
             bati_veriler = sorted(bati_veriler, key=lambda x: x['yolcu'], reverse=True)
