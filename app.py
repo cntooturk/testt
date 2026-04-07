@@ -20,6 +20,25 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # --- AYARLAR ---
 st.set_page_config(page_title="Cntooturk Takip Sistemi", page_icon="🚌", layout="centered")
 
+# --- MEVCUT ÇALIŞAN GÜVENLİ API BAĞLANTISI ---
+API_URL = "https://bursakartapi.abys-web.com/api/static/realtimedata"
+HEADERS = {
+    'Content-Type': 'application/json',
+    'Origin': 'https://www.bursakart.com.tr',
+    'Referer': 'https://www.bursakart.com.tr/',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+}
+
+@st.cache_resource
+def get_http_session():
+    session = requests.Session()
+    retry = Retry(connect=2, backoff_factor=0.2)
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=150, pool_maxsize=150)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    session.headers.update(HEADERS)
+    return session
+
 # --- CSS TASARIM ---
 st.markdown("""
     <style>
@@ -160,24 +179,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- BAĞLANTI HAVUZU (HIZ OPTİMİZASYONU İÇİN) ---
-API_URL = "https://bursakartapi.abys-web.com/api/static/realtimedata"
-HEADERS = {
-    'Content-Type': 'application/json',
-    'Origin': 'https://www.bursakart.com.tr',
-    'Referer': 'https://www.bursakart.com.tr/',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-}
-
-@st.cache_resource
-def get_http_session():
-    session = requests.Session()
-    retry = Retry(connect=2, backoff_factor=0.2)
-    adapter = HTTPAdapter(max_retries=retry, pool_connections=150, pool_maxsize=150)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-    session.headers.update(HEADERS)
-    return session
 
 # --- HAT LİSTELERİ ---
 TUM_HATLAR = [
@@ -275,7 +276,6 @@ def veri_cek(keyword, genis_sorgu=True):
         session = get_http_session()
         for _ in range(2):
             try:
-                # Timeout 5 saniyeye düşürüldü ki hızlıca ikinci denemeye geçsin
                 r = session.post(API_URL, json=payload, timeout=5, verify=False)
                 if r.status_code == 200:
                     data = r.json().get("result", [])
@@ -300,7 +300,6 @@ def oho_hat_verisi_getir(hat):
     k_yolcu = int(ham_yolcu * 1.11)
     return {"hat": hat, "arac": len(temiz), "yolcu": k_yolcu}
 
-# --- ENTEGRE HAT BİRLEŞTİRİCİ ---
 def hatlari_birlestir(veri_listesi, hatlar_listesi, yeni_isim):
     birlesecekler = [x for x in veri_listesi if x['hat'] in hatlar_listesi]
     
@@ -309,7 +308,6 @@ def hatlari_birlestir(veri_listesi, hatlar_listesi, yeni_isim):
         toplam_yolcu = sum(x['yolcu'] for x in birlesecekler)
         
         sub_hatlar = sorted(birlesecekler, key=lambda x: x['yolcu'], reverse=True)
-        
         veri_listesi = [x for x in veri_listesi if x['hat'] not in hatlar_listesi]
         
         veri_listesi.append({
@@ -354,9 +352,8 @@ def arac_secildi_callback():
 
 # --- ARAYÜZ BAŞLANGICI ---
 st.title("🚌 Cntooturk Takip Sistemi")
-st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 v110 (Hızlı)")
+st.caption(f"🕒 {get_turkey_time()} | ⚡ 20 Sn Güncelleme | 🚀 Stable")
 
-# OTOMATİK SEKME DEĞİŞTİRİCİ
 if st.session_state.get('do_tab_switch'):
     components.html("""
         <script>
@@ -397,7 +394,6 @@ with tab_canli:
     if st.session_state.aktif_arama and not st.session_state.takip_modu:
         giris = st.session_state.aktif_arama
         
-        # --- HIZLANDIRILMIŞ BOŞ ARAÇ TARAMASI ---
         if giris == "3" or giris == "0":
             st.subheader("💤 Boş / Servis Dışı")
             veriler = []
@@ -451,7 +447,6 @@ with tab_canli:
                         st.rerun()
                     st.divider()
 
-        # PLAKA SORGUSU
         elif len(giris) > 4 and giris[0].isdigit():
             hedef = plaka_duzenle(giris)
             with st.status("🔍 Araç aranıyor...", expanded=True) as status:
@@ -475,7 +470,6 @@ with tab_canli:
                 
                 if not bulunan:
                     status.write("🌍 Tüm hatlar taranıyor...")
-                    # HIZ İÇİN WORKER SAYISI 30'A ÇIKARILDI
                     with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
                         future_to_hat = {executor.submit(veri_cek, hat, True): hat for hat in TUM_HATLAR}
                         for future in concurrent.futures.as_completed(future_to_hat):
