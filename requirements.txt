@@ -1,6 +1,7 @@
 streamlit
 requests
 pandas
-geopy
 folium
 streamlit-folium
+pytz
+geopy
